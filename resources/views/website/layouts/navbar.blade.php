@@ -26,11 +26,17 @@
 
         <!-- Auth Buttons -->
         <div class="flex items-center space-x-3 space-x-reverse">
-            <button onclick="openModal('login')"
-                class="px-4 py-2 text-sm font-bold text-slate-300 hover:text-white transition">دخول</button>
-            <button onclick="openModal('register')"
-                class="px-5 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/30 transition">حساب
-                جديد 🚀</button>
+            @auth
+                <a href="{{ route('dashboard.home') }}"
+                    class="px-5 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/30 transition">
+                    لوحة التحكم </a>
+            @endauth
+            @guest
+                <button onclick="openModal('register')"
+                    class="px-5 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/30 transition">
+                    دخول 🚀</button>
+            @endguest
+
         </div>
     </div>
 </nav>

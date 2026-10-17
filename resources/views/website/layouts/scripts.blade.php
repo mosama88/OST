@@ -6,9 +6,6 @@
            if (type === 'register') {
                title.innerText = 'إنشاء حساب جديد في OSInfoTrade';
                nameField.classList.remove('hidden');
-           } else {
-               title.innerText = 'تسجيل الدخول إلى OSInfoTrade';
-               nameField.classList.add('hidden');
            }
        }
 

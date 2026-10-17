@@ -43,7 +43,7 @@
 
     @yield('content')
 
-   
+
 
     <!-- Modal Dialog (Login / Register) -->
     @include('website.layouts.login')

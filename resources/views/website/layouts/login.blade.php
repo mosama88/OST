@@ -11,23 +11,21 @@
               <p class="text-xs text-slate-400 mt-1">بوابتك للوصول إلى أدوات تحليل OSInfoTrade</p>
           </div>
 
-          <form class="space-y-4"
-              onsubmit="event.preventDefault(); showNotification('تمت العملية بنجاح! مرحباً بك في OSInfoTrade'); closeModal();">
-              <div id="nameField" class="hidden">
-                  <label class="block text-xs font-bold text-slate-300 mb-1.5">الاسم الكامل</label>
-                  <input type="text"
-                      class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 font-medium"
-                      placeholder="اسمك الكريم">
-              </div>
+          <form class="space-y-4" action="{{ route('login') }}" method="POST">
+              @csrf
+
               <div>
                   <label class="block text-xs font-bold text-slate-300 mb-1.5">البريد الإلكتروني</label>
-                  <input type="email" required
+                  <input type="email" required name="email"
                       class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 font-mono"
                       placeholder="name@example.com">
+                  @error('email')
+                      <span style="color: red">{{ $message }}</span>
+                  @enderror
               </div>
               <div>
                   <label class="block text-xs font-bold text-slate-300 mb-1.5">كلمة المرور</label>
-                  <input type="password" required
+                  <input type="password" required name="password"
                       class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 font-mono"
                       placeholder="••••••••">
               </div>
