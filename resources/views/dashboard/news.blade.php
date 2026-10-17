@@ -2,147 +2,163 @@
 <html lang="ar" dir="rtl" data-bs-theme="dark">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="{{ asset('dash-users') }}/assets/img/logo.ico" rel="icon" type="image/x-icon" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="{{ asset('dash-users') }}/assets/img/logo.ico" rel="icon" type="image/x-icon" />
 
-  <title>بوابة أخبار السوق الأمريكي والخبطات السعرية — MOMO INVESTING PRO</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{{ asset('dash-users') }}/assets/css/news.css" />
+    <title>بوابة أخبار السوق الأمريكي والخبطات السعرية — MOMO INVESTING PRO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('dash-users') }}/assets/css/news.css" />
 </head>
 
 <body>
 
-  <!-- الهيدر العلوي -->
-  <header class="top-nav-bar d-flex flex-wrap justify-content-between align-items-center gap-3">
-    <div class="brand-title">
-      <span class="pulse-dot"></span>
-      <span>📰 بوابة أخبار وول ستريت والخبطات السعرية (MOMO ARABIC NEWS)</span>
-    </div>
 
-    <div class="d-flex align-items-center gap-2 flex-wrap">
-      <span id="newsStatus" class="fw-bold text-warning small me-2">⏳ جاري جلب وترجمة أحدث الأخبار...</span>
-      <span class="badge bg-dark border border-secondary text-light">آخر تحديث: <b
-          id="newsLastUpdate">--:--:--</b></span>
-      <button id="nfScanBtn" class="btn btn-success btn-sm fw-bold">🔄 تحديث الأخبار الآن</button>
-      <a href="index.html" class="btn btn-sm fw-bold"
-        style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; border: 1px solid #38bdf8;">
-        🏠 العودة للاسكانر والحاسبة الرئيسية
-      </a>
-    </div>
-  </header>
-
-  <main class="container-fluid py-3 px-3 px-lg-4">
-
-    <!-- شريط التبويبات مثل Investing.com -->
-    <div class="market-tabs-bar">
-      <button class="mkt-tab active" data-cat="all">🔥 جميع الأخبار العاجلة</button>
-      <button class="mkt-tab" data-cat="stocks">🚀 خبطات الأسهم النشطة (Stocks in Play)</button>
-      <button class="mkt-tab" data-cat="fda">🧬 أخبار الأدوية و FDA</button>
-      <button class="mkt-tab" data-cat="ma">🤝 صفقات الاستحواذ والعقود (M&A)</button>
-      <button class="mkt-tab" data-cat="earnings">💰 تقارير الأرباح (Earnings)</button>
-      <button class="mkt-tab" data-cat="macro">🏛️ المؤشرات والفيدرالي (Markets & Macro)</button>
-      <button class="mkt-tab" data-cat="offering">⚠️ تحذيرات طرح الأسهم (Offering Alerts)</button>
-      <div class="ms-auto d-flex align-items-center gap-2">
-        <input type="text" id="nfSearch" class="form-control form-control-sm" style="width:190px;"
-          placeholder="🔍 ابحث عن سهم أو خبر...">
-      </div>
-    </div>
-
-    <!-- 1. قسم المجلة المصورة (Hero Story + 4 Visual Cards) مثل الصورة تماماً -->
-    <section id="visualMagazineSection">
-      <!-- الخبر الرئيسي الكبير (Hero) -->
-      <div id="heroNewsContainer"></div>
-
-      <!-- الكروت الأربعة المصورة -->
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="m-0 fw-black text-info">📸 أبرز الأخبار المصورة والمحفزات المؤثرة اليوم</h6>
-        <div class="d-flex gap-1">
-          <button class="btn btn-sm btn-dark border-secondary px-2 py-0" id="carouselPrevBtn" title="السابق">❮</button>
-          <button class="btn btn-sm btn-dark border-secondary px-2 py-0" id="carouselNextBtn" title="التالي">❯</button>
-        </div>
-      </div>
-      <div id="subNewsGridContainer" class="sub-news-grid"></div>
-
-      <!-- المزيد من الأخبار المترجمة -->
-      <div id="moreNewsContainer" class="more-news-list"></div>
-    </section>
-
-    <!-- 2. غرفة القنص الفوري (تفتح عند الضغط على أي خبر أو سهم) -->
-    <section id="newsSniperSection" class="mb-4" hidden>
-      <div id="newsSniperHud"></div>
-      <div class="card bg-dark border-info shadow-lg">
-        <div class="card-header d-flex justify-content-between align-items-center py-2" style="background:#090d16;">
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-info text-dark fw-black fs-6" id="newsChartBadge">SYMBOL</span>
-            <span class="text-light small fw-bold">الشارت اللحظي للسهم المتأثر بالخبر مع VWAP</span>
-          </div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-info chart-tf-btn" data-tf="1">1m</button>
-            <button class="btn btn-sm btn-outline-info chart-tf-btn active" data-tf="5">5m</button>
-            <button class="btn btn-sm btn-outline-info chart-tf-btn" data-tf="15">15m</button>
-            <button class="btn btn-sm btn-warning fw-bold" id="sendToMainCalcBtn">🧮 إرسال السهم للحاسبة الرئيسية
-              ↵</button>
-            <button class="btn btn-sm btn-outline-light" id="closeNewsChartBtn">✕ إغلاق الشارت</button>
-          </div>
-        </div>
-        <div class="card-body p-0">
-          <div id="news_tv_container" style="height: 500px; width: 100%;"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. لوحات الخبطات الـ 6 (Momos Catalyst Panels) -->
-    <div class="d-flex justify-content-between align-items-center mb-2 mt-3">
-      <h6 class="m-0 fw-black text-warning">⚡ رادار الأسهم ذات الخبطات السعرية اللحظية (إشارات TP1 / TP2 / TP3 / SL)
-      </h6>
-      <div class="d-flex align-items-center gap-3">
-        <div class="form-check form-switch m-0">
-          <input class="form-check-input" type="checkbox" id="nfAuto" checked>
-          <label class="form-check-label small fw-bold text-light" for="nfAuto">تحديث تلقائي</label>
-        </div>
-        <div class="form-check form-switch m-0">
-          <input class="form-check-input" type="checkbox" id="nfSound" checked>
-          <label class="form-check-label small fw-bold text-warning" for="nfSound">🔔 صوت التنبيه</label>
-        </div>
-      </div>
-    </div>
-    <div id="catalystPanels" class="mb-4" dir="ltr"></div>
-
-    <!-- 4. جدول الأخبار المرتبطة بالأسهم وأهداف القنص -->
-    <section class="card border-secondary mb-4" style="background: #070b14;">
-      <div class="card-header d-flex justify-content-between align-items-center py-2" style="background: #0d1322;">
-        <h6 class="m-0 fw-black text-white">🎯 جدول خبطات الأسهم والأخبار المترجمة مع أهداف القناص (اضغط على أي صف لفتح
-          الشارت)</h6>
-        <span class="badge bg-primary" id="newsTotalCount">0 فرصة</span>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-dark table-hover align-middle mb-0" id="catalystTable">
-          <thead style="background: #090d16; font-size: 0.8rem; color: #94a3b8;">
-            <tr>
-              <th>السهم</th>
-              <th>تصنيف الخبطة</th>
-              <th>الخبر باللغة العربية + العنوان الأصلي</th>
-              <th class="text-end">السعر</th>
-              <th class="text-end">التغيّر%</th>
-              <th class="text-end">السيولة / RVOL</th>
-              <th class="text-end">Free Float</th>
-              <th class="text-center">قوة الخبطة</th>
-              <th>توصية القناص (TP1 / TP2 / TP3 / SL)</th>
-            </tr>
-          </thead>
-          <tbody id="catalystRows">
-            <tr>
-              <td colspan="9" class="text-center py-5 text-secondary">⏳ جاري تحليل الأسهم وترجمة الأخبار العاجلة...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-  </main>
-
-  <script src="{{ asset('dash-users') }}/assets/js/news.js"></script>
 </body>
 
 </html>
+
+
+
+
+
+@extends('dashboard.layouts.master')
+@section('content')
+    <!-- الهيدر العلوي -->
+    <header class="top-nav-bar d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="brand-title">
+            <span class="pulse-dot"></span>
+            <span>📰 بوابة أخبار وول ستريت والخبطات السعرية (MOMO ARABIC NEWS)</span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span id="newsStatus" class="fw-bold text-warning small me-2">⏳ جاري جلب وترجمة أحدث الأخبار...</span>
+            <span class="badge bg-dark border border-secondary text-light">آخر تحديث: <b
+                    id="newsLastUpdate">--:--:--</b></span>
+            <button id="nfScanBtn" class="btn btn-success btn-sm fw-bold">🔄 تحديث الأخبار الآن</button>
+            <a href="index.html" class="btn btn-sm fw-bold"
+                style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; border: 1px solid #38bdf8;">
+                🏠 العودة للاسكانر والحاسبة الرئيسية
+            </a>
+        </div>
+    </header>
+
+    <main class="container-fluid py-3 px-3 px-lg-4">
+
+        <!-- شريط التبويبات مثل Investing.com -->
+        <div class="market-tabs-bar">
+            <button class="mkt-tab active" data-cat="all">🔥 جميع الأخبار العاجلة</button>
+            <button class="mkt-tab" data-cat="stocks">🚀 خبطات الأسهم النشطة (Stocks in Play)</button>
+            <button class="mkt-tab" data-cat="fda">🧬 أخبار الأدوية و FDA</button>
+            <button class="mkt-tab" data-cat="ma">🤝 صفقات الاستحواذ والعقود (M&A)</button>
+            <button class="mkt-tab" data-cat="earnings">💰 تقارير الأرباح (Earnings)</button>
+            <button class="mkt-tab" data-cat="macro">🏛️ المؤشرات والفيدرالي (Markets & Macro)</button>
+            <button class="mkt-tab" data-cat="offering">⚠️ تحذيرات طرح الأسهم (Offering Alerts)</button>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <input type="text" id="nfSearch" class="form-control form-control-sm" style="width:190px;"
+                    placeholder="🔍 ابحث عن سهم أو خبر...">
+            </div>
+        </div>
+
+        <!-- 1. قسم المجلة المصورة (Hero Story + 4 Visual Cards) مثل الصورة تماماً -->
+        <section id="visualMagazineSection">
+            <!-- الخبر الرئيسي الكبير (Hero) -->
+            <div id="heroNewsContainer"></div>
+
+            <!-- الكروت الأربعة المصورة -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="m-0 fw-black text-info">📸 أبرز الأخبار المصورة والمحفزات المؤثرة اليوم</h6>
+                <div class="d-flex gap-1">
+                    <button class="btn btn-sm btn-dark border-secondary px-2 py-0" id="carouselPrevBtn"
+                        title="السابق">❮</button>
+                    <button class="btn btn-sm btn-dark border-secondary px-2 py-0" id="carouselNextBtn"
+                        title="التالي">❯</button>
+                </div>
+            </div>
+            <div id="subNewsGridContainer" class="sub-news-grid"></div>
+
+            <!-- المزيد من الأخبار المترجمة -->
+            <div id="moreNewsContainer" class="more-news-list"></div>
+        </section>
+
+        <!-- 2. غرفة القنص الفوري (تفتح عند الضغط على أي خبر أو سهم) -->
+        <section id="newsSniperSection" class="mb-4" hidden>
+            <div id="newsSniperHud"></div>
+            <div class="card bg-dark border-info shadow-lg">
+                <div class="card-header d-flex justify-content-between align-items-center py-2" style="background:#090d16;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-info text-dark fw-black fs-6" id="newsChartBadge">SYMBOL</span>
+                        <span class="text-light small fw-bold">الشارت اللحظي للسهم المتأثر بالخبر مع VWAP</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-info chart-tf-btn" data-tf="1">1m</button>
+                        <button class="btn btn-sm btn-outline-info chart-tf-btn active" data-tf="5">5m</button>
+                        <button class="btn btn-sm btn-outline-info chart-tf-btn" data-tf="15">15m</button>
+                        <button class="btn btn-sm btn-warning fw-bold" id="sendToMainCalcBtn">🧮 إرسال السهم للحاسبة
+                            الرئيسية
+                            ↵</button>
+                        <button class="btn btn-sm btn-outline-light" id="closeNewsChartBtn">✕ إغلاق الشارت</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="news_tv_container" style="height: 500px; width: 100%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. لوحات الخبطات الـ 6 (Momos Catalyst Panels) -->
+        <div class="d-flex justify-content-between align-items-center mb-2 mt-3">
+            <h6 class="m-0 fw-black text-warning">⚡ رادار الأسهم ذات الخبطات السعرية اللحظية (إشارات TP1 / TP2 / TP3 /
+                SL)
+            </h6>
+            <div class="d-flex align-items-center gap-3">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="nfAuto" checked>
+                    <label class="form-check-label small fw-bold text-light" for="nfAuto">تحديث تلقائي</label>
+                </div>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="nfSound" checked>
+                    <label class="form-check-label small fw-bold text-warning" for="nfSound">🔔 صوت التنبيه</label>
+                </div>
+            </div>
+        </div>
+        <div id="catalystPanels" class="mb-4" dir="ltr"></div>
+
+        <!-- 4. جدول الأخبار المرتبطة بالأسهم وأهداف القنص -->
+        <section class="card border-secondary mb-4" style="background: #070b14;">
+            <div class="card-header d-flex justify-content-between align-items-center py-2" style="background: #0d1322;">
+                <h6 class="m-0 fw-black text-white">🎯 جدول خبطات الأسهم والأخبار المترجمة مع أهداف القناص (اضغط على أي
+                    صف لفتح
+                    الشارت)</h6>
+                <span class="badge bg-primary" id="newsTotalCount">0 فرصة</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0" id="catalystTable">
+                    <thead style="background: #090d16; font-size: 0.8rem; color: #94a3b8;">
+                        <tr>
+                            <th>السهم</th>
+                            <th>تصنيف الخبطة</th>
+                            <th>الخبر باللغة العربية + العنوان الأصلي</th>
+                            <th class="text-end">السعر</th>
+                            <th class="text-end">التغيّر%</th>
+                            <th class="text-end">السيولة / RVOL</th>
+                            <th class="text-end">Free Float</th>
+                            <th class="text-center">قوة الخبطة</th>
+                            <th>توصية القناص (TP1 / TP2 / TP3 / SL)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="catalystRows">
+                        <tr>
+                            <td colspan="9" class="text-center py-5 text-secondary">⏳ جاري تحليل الأسهم وترجمة
+                                الأخبار العاجلة...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+@endsection
+@push('js')
+    <script src="{{ asset('dash-users') }}/assets/js/news.js"></script>
+@endpush
