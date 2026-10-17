@@ -67,9 +67,14 @@ function calc() {
   sc.hidden = false;
 }
 
-['buy', 'sell', 'budget', 'shares', 'fbf', 'fbp', 'fsf', 'fsp', 'frac', 'mode'].forEach(id => $(id).addEventListener('input', calc));
-$('mode').addEventListener('change', () => { const b = $('mode').value === 'budget'; $('bw').hidden = !b; $('sw').hidden = b; calc() });
-document.querySelectorAll('[data-b]').forEach(b => b.addEventListener('click', () => { $('mode').value = 'budget'; $('bw').hidden = false; $('sw').hidden = true; $('budget').value = b.dataset.b; calc() }));
+if ($('mode')) {
+  ['buy', 'sell', 'budget', 'shares', 'fbf', 'fbp', 'fsf', 'fsp', 'frac', 'mode'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('input', calc);
+  });
+  $('mode').addEventListener('change', () => { const b = $('mode').value === 'budget'; $('bw').hidden = !b; $('sw').hidden = b; calc() });
+  document.querySelectorAll('[data-b]').forEach(b => b.addEventListener('click', () => { $('mode').value = 'budget'; $('bw').hidden = false; $('sw').hidden = true; $('budget').value = b.dataset.b; calc() }));
+}
 
 /* ---------- Deep Object Extractor ---------- */
 function dig(o, keys, isStr) {
@@ -210,57 +215,63 @@ async function fetchFullStockData(sym) {
 }
 
 /* ---------- Events for Stock Fetcher & Clear Button ---------- */
-$('sym').addEventListener('input', () => {
-  const val = $('sym').value.trim().toUpperCase();
-  if (val) {
-    localStorage.setItem(CACHE_SYM_KEY, val);
-    $('cacheBadge').hidden = false;
-  }
-});
+if ($('sym')) {
+  $('sym').addEventListener('input', () => {
+    const val = $('sym').value.trim().toUpperCase();
+    if (val) {
+      localStorage.setItem(CACHE_SYM_KEY, val);
+      $('cacheBadge').hidden = false;
+    }
+  });
+}
 
-$('get').addEventListener('click', async () => {
-  const sym = $('sym').value.trim().toUpperCase();
-  const q = $('q'), b = $('get');
-  if (!sym) {
-    q.className = 'alert alert-warning mb-3 p-2';
-    q.textContent = '⚠️ اكتب رمز السهم أولاً.';
-    return;
-  }
-  b.disabled = true;
-  b.textContent = '⏳ جاري الجلب...';
-  try {
-    const data = await fetchFullStockData(sym);
-    renderQuoteCard(data);
-    saveStockToCache(data);
-    $('buy').value = (data.ask != null && data.ask > 0) ? data.ask : data.price;
-    if (data.bid != null && data.bid > 0) $('sell').value = data.bid;
-    calc();
-  } catch (e) {
-    q.className = 'alert alert-danger mb-3 p-2';
-    q.innerHTML = `❌ تعذر جلب السعر (${e.message}). تأكد من الرمز أو رابط الـ Worker.`;
-  }
-  b.disabled = false;
-  b.textContent = '🔍 هات السعر والبيانات';
-});
+if ($('get')) {
+  $('get').addEventListener('click', async () => {
+    const sym = $('sym').value.trim().toUpperCase();
+    const q = $('q'), b = $('get');
+    if (!sym) {
+      q.className = 'alert alert-warning mb-3 p-2';
+      q.textContent = '⚠️ اكتب رمز السهم أولاً.';
+      return;
+    }
+    b.disabled = true;
+    b.textContent = '⏳ جاري الجلب...';
+    try {
+      const data = await fetchFullStockData(sym);
+      renderQuoteCard(data);
+      saveStockToCache(data);
+      $('buy').value = (data.ask != null && data.ask > 0) ? data.ask : data.price;
+      if (data.bid != null && data.bid > 0) $('sell').value = data.bid;
+      calc();
+    } catch (e) {
+      q.className = 'alert alert-danger mb-3 p-2';
+      q.innerHTML = `❌ تعذر جلب السعر (${e.message}). تأكد من الرمز أو رابط الـ Worker.`;
+    }
+    b.disabled = false;
+    b.textContent = '🔍 هات السعر والبيانات';
+  });
+}
 
-$('sym').addEventListener('keydown', e => { if (e.key === 'Enter') $('get').click(); });
+if ($('sym')) $('sym').addEventListener('keydown', e => { if (e.key === 'Enter') $('get').click(); });
 
 // Clear Cache Button
-$('clearCache').addEventListener('click', () => {
-  try {
-    localStorage.removeItem(CACHE_SYM_KEY);
-    localStorage.removeItem(CACHE_QUOTE_KEY);
-  } catch (e) { }
-  $('sym').value = '';
-  $('buy').value = '';
-  $('sell').value = '';
-  $('q').className = 'alert alert-secondary d-none mb-3 p-3';
-  $('q').innerHTML = '';
-  $('res').innerHTML = '';
-  $('scen').hidden = true;
-  $('msg').textContent = '';
-  $('cacheBadge').hidden = true;
-});
+if ($('clearCache')) {
+  $('clearCache').addEventListener('click', () => {
+    try {
+      localStorage.removeItem(CACHE_SYM_KEY);
+      localStorage.removeItem(CACHE_QUOTE_KEY);
+    } catch (e) { }
+    $('sym').value = '';
+    $('buy').value = '';
+    $('sell').value = '';
+    $('q').className = 'alert alert-secondary d-none mb-3 p-3';
+    $('q').innerHTML = '';
+    $('res').innerHTML = '';
+    $('scen').hidden = true;
+    $('msg').textContent = '';
+    $('cacheBadge').hidden = true;
+  });
+}
 
 // Restore Cached Symbol & Quote on Page Load
 (function restoreCache() {
