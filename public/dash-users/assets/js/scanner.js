@@ -673,7 +673,7 @@
 
 
 /* ============================================================================
-   ULTRA MOMO PRO TERMINAL v5.2 (CRYSTAL WHITE TEXT & ROYAL GLOW EDITION)
+   ULTRA MOMO PRO TERMINAL v6.0 (EVENTS + HEALTH FILTER) (CRYSTAL WHITE TEXT & ROYAL GLOW EDITION)
    نصوص بيضاء فائقة الوضوح + ألوان متدرجة فخمة + نفس اللوجيك 100%
 ============================================================================ */
 (function () {
@@ -1225,125 +1225,186 @@
   }
 
   /* ---------------- 5. محرك MOMO Score & Verdict Engine ---------------- */
-  function computeMomo(s) {
-    var chg = num(s.changePct) || 0;
-    var vol = num(s.volume) || 0;
-    var avg30 = num(s.avgVolume3M) || 0;
-    var rvol = avg30 > 0 ? vol / avg30 : (num(s.relVol10D) || 0);
-    var floatS = num(s.floatShares) || 0;
-    var w52 = num(s.week52Pos);
-    var vwapD = num(s.vwapDiff);
+/* % النزول من أعلى سعر في اليوم. null لو الـ Worker مش بيرجّع high */
+function offHigh(s) {
+  var h = num(s.high), p = num(s.price);
+  if (h && p && h > 0) return Math.max(0, (h - p) / h * 100);
+  return null;
+}
 
-    var score = 50;
+/* السهم "سليم" = فوق VWAP، قريب من قمة اليوم، وفوق الافتتاح */
+function isHealthy(s) {
+  var vw = num(s.vwapDiff);
+  if (vw != null && vw < 0) return false;
+  var oh = offHigh(s);
+  if (oh != null && oh > 8) return false;
+  var o = num(s.open), p = num(s.price);
+  if (o && p && p < o) return false;
+  return true;
+}
 
-    if (rvol >= 5) score += 25;
-    else if (rvol >= 3) score += 18;
-    else if (rvol >= 2) score += 12;
-    else if (rvol >= 1.5) score += 6;
-    else if (rvol < 1) score -= 10;
+function computeMomo(s) {
+  var chg = num(s.changePct) || 0;
+  var vol = num(s.volume) || 0;
+  var price = num(s.price) || 0;
+  var avg = num(s.avgVolume3M) || 0;
+  var rvol = avg > 0 ? vol / avg : (num(s.relVol10D) || 0);
+  var floatS = num(s.floatShares) || 0;
+  var w52 = num(s.week52Pos);
+  var vwapD = num(s.vwapDiff);
+  var oh = offHigh(s);
+  var o = num(s.open);
 
-    if (chg >= 4 && chg <= 18) score += 16;
-    else if (chg > 18 && chg <= 35) score += 13;
-    else if (chg > 35 && chg <= 55) score += 6;
-    else if (chg > 55) score -= 5;
-    else if (chg >= 1 && chg < 4) score += 5;
-    else if (chg < 0) score -= 15;
+  var score = 40; // كان 50 — كان بيدّي نجاح مجاني
 
-    var ffM = floatS / 1e6;
-    if (ffM > 0 && ffM <= 5) score += 15;
-    else if (ffM > 0 && ffM <= 20) score += 10;
-    else if (ffM > 0 && ffM <= 50) score += 5;
-    else if (ffM > 200) score -= 10;
+  // السيولة النسبية
+  if (rvol >= 5) score += 22;
+  else if (rvol >= 3) score += 16;
+  else if (rvol >= 2) score += 10;
+  else if (rvol >= 1.5) score += 4;
+  else if (rvol < 1) score -= 15;
 
-    if (w52 != null) {
-      if (w52 >= 85) score += 8;
-      else if (w52 >= 65) score += 4;
-      else if (w52 <= 15) score -= 6;
-    }
+  // نسبة التغير
+  if (chg >= 5 && chg <= 18) score += 14;
+  else if (chg > 18 && chg <= 35) score += 10;
+  else if (chg > 35 && chg <= 55) score += 2;
+  else if (chg > 55) score -= 10;
+  else if (chg >= 2 && chg < 5) score += 4;
+  else if (chg < 0) score -= 20;
 
-    if (vwapD != null) {
-      if (vwapD > 2) score += 7;
-      else if (vwapD > 0) score += 3;
-      else if (vwapD < -2) score -= 7;
-    }
+  // Float: شيلت مكافأة الـ float الصغير جداً (<5M) — ده فخ pump & dump
+  var ffM = floatS / 1e6;
+  if (ffM >= 5 && ffM <= 30) score += 8;
+  else if (ffM > 30 && ffM <= 60) score += 3;
+  else if (ffM > 120) score -= 10;
 
-    if (s._priceDelta > 0 && s._volDelta > 25000) score += 6;
-    if (vol > 0 && vol < 100000) score -= 15;
-
-    return Math.max(0, Math.min(100, Math.round(score)));
+  if (w52 != null) {
+    if (w52 >= 85) score += 6;
+    else if (w52 >= 65) score += 3;
+    else if (w52 <= 15) score -= 6;
   }
 
-  function computeVerdict(s) {
-    if (s._v) return s._v;
-    var price = num(s.price) || 0;
-    var chg = num(s.changePct) || 0;
-    var vol = num(s.volume) || 0;
-    var avg30 = num(s.avgVolume3M) || 0;
-    var rvol = avg30 > 0 ? vol / avg30 : (num(s.relVol10D) || 0);
-    var momo = computeMomo(s);
-    var floatS = num(s.floatShares) || 0;
-    var w52 = num(s.week52Pos);
+  // VWAP: العقوبة تحت VWAP بقت تقيلة
+  if (vwapD != null) {
+    if (vwapD > 2) score += 10;
+    else if (vwapD > 0) score += 4;
+    else if (vwapD < -2) score -= 25;
+    else score -= 15;
+  }
 
-    var type = 'wait';
-    var signals = [];
-    var risks = [];
+  // البعد عن قمة اليوم (أهم فلتر ضد الأسهم اللي بتفشل وبتنزل)
+  if (oh != null) {
+    if (oh <= 3) score += 8;
+    else if (oh <= 8) score += 0;
+    else if (oh <= 15) score -= 10;
+    else score -= 22;
+  }
+  if (o && price && price < o) score -= 12;
 
-    if (rvol >= 3) signals.push('🔥 RVOL ' + rvol.toFixed(1) + 'x');
-    else if (rvol >= 2) signals.push('📈 RVOL ' + rvol.toFixed(1) + 'x');
-    else if (rvol >= 1.5) signals.push('📊 RVOL نشط');
+  // تدفق السيولة اللحظي: شراء مقابل بيع بحجم
+  if (s._volDelta > 25000) {
+    if (s._priceDelta > 0) score += 5;
+    else if (s._priceDelta < 0) score -= 8;
+  }
 
-    if (chg >= 4 && chg <= 20) signals.push('✅ صعود ' + chg.toFixed(1) + '%');
-    else if (chg > 20 && chg <= 40) signals.push('🚀 فوران ' + chg.toFixed(1) + '%');
+  if (vol > 0 && vol < 100000) score -= 15;
+  if (price > 0 && price < 1) score -= 10;
 
-    if (floatS > 0 && floatS <= 15e6) signals.push('💎 Float خفيف ' + (floatS / 1e6).toFixed(1) + 'M');
-    if (w52 != null && w52 >= 85) signals.push('🏔️ قمة 52W');
-    if (s._volDelta >= 50000) signals.push('⚡ سيولة لحظية +' + fmtBig(s._volDelta));
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
 
-    if (price > 0 && price < 1) risks.push('🪙 سهم سنتات (<$1)');
-    if (chg > 45) risks.push('⚡ متضخم جداً');
-    if (chg < -5) risks.push('📉 هبوط حاد');
-    if (rvol > 20) risks.push('🎰 مضاربة عنيفة');
-    if (vol > 0 && vol < 100000) risks.push('💧 سيولة ضعيفة');
-    if (floatS > 120e6) risks.push('🐘 Float ثقيل');
+function computeVerdict(s) {
+  if (s._v) return s._v;
+  var price = num(s.price) || 0;
+  var chg = num(s.changePct) || 0;
+  var vol = num(s.volume) || 0;
+  var avg30 = num(s.avgVolume3M) || 0;
+  var rvol = avg30 > 0 ? vol / avg30 : (num(s.relVol10D) || 0);
+  var momo = computeMomo(s);
+  var floatS = num(s.floatShares) || 0;
+  var w52 = num(s.week52Pos);
+  var vwapD = num(s.vwapDiff);
+  var oh = offHigh(s);
+  var healthy = isHealthy(s);
 
-    if (vol > 0 && vol < 80000) {
-      type = 'danger';
-    } else if (chg > 55 || chg < -8) {
-      type = 'unstable';
-    } else if (momo >= 72 && rvol >= 1.8 && chg >= 3 && chg <= 40) {
-      type = 'enter';
-    } else if (momo >= 58 && rvol >= 1.3) {
-      type = 'watch';
-    } else if (momo >= 45) {
-      type = 'wait';
+  var type = 'wait';
+  var signals = [];
+  var risks = [];
+
+  if (rvol >= 3) signals.push('🔥 RVOL ' + rvol.toFixed(1) + 'x');
+  else if (rvol >= 2) signals.push('📈 RVOL ' + rvol.toFixed(1) + 'x');
+  else if (rvol >= 1.5) signals.push('📊 RVOL نشط');
+
+  if (chg >= 5 && chg <= 20) signals.push('✅ صعود ' + chg.toFixed(1) + '%');
+  else if (chg > 20 && chg <= 40) signals.push('🚀 فوران ' + chg.toFixed(1) + '%');
+  if (floatS > 0 && floatS <= 30e6 && floatS >= 5e6) signals.push('💎 Float ' + (floatS / 1e6).toFixed(1) + 'M');
+  if (w52 != null && w52 >= 85) signals.push('🏔️ قمة 52W');
+  if (vwapD != null && vwapD > 0) signals.push('📍 فوق VWAP');
+  if (s._volDelta >= 50000 && s._priceDelta > 0) signals.push('⚡ شراء لحظي +' + fmtBig(s._volDelta));
+
+  if (price > 0 && price < 1) risks.push('🪙 سهم سنتات (<$1)');
+  if (floatS > 0 && floatS < 5e6) risks.push('🎯 Float ضيق جداً (فخ محتمل)');
+  if (chg > 45) risks.push('⚡ متضخم جداً');
+  if (chg < -5) risks.push('📉 هبوط حاد');
+  if (rvol > 20) risks.push('🎰 مضاربة عنيفة');
+  if (vol > 0 && vol < 100000) risks.push('💧 سيولة ضعيفة');
+  if (floatS > 120e6) risks.push('🐘 Float ثقيل');
+  if (vwapD != null && vwapD < 0) risks.push('⬇️ تحت VWAP');
+  if (oh != null && oh > 8) risks.push('📉 نازل ' + oh.toFixed(0) + '% من القمة');
+  if (s._volDelta >= 25000 && s._priceDelta < 0) risks.push('🩸 بيع بحجم');
+
+  if (vol > 0 && vol < 80000) {
+    type = 'danger';
+  } else if (chg > 55 || chg < -8) {
+    type = 'unstable';
+  } else if (!healthy) {
+    type = momo >= 45 ? 'wait' : 'weak';          // فاشل/بينزل: ممنوع enter و watch
+  } else if (
+    momo >= 75 && rvol >= 2 && chg >= 5 && chg <= 40 &&
+    price >= 1 && vol >= 500000 && vwapD != null &&
+    (floatS === 0 || floatS <= 100e6)
+  ) {
+    type = 'enter';
+  } else if (momo >= 62 && rvol >= 1.5 && price >= 1) {
+    type = 'watch';
+  } else if (momo >= 45) {
+    type = 'wait';
+  } else {
+    type = 'weak';
+  }
+
+  // وقف الخسارة على VWAP (هيكلي) والأهداف بنسبة مخاطرة/عائد ثابتة 1.5R / 3R
+  var tp1, tp2, sl;
+  if (price > 0) {
+    var risk;
+    if (vwapD != null && vwapD > 0) {
+      var vwapPrice = price / (1 + vwapD / 100);
+      risk = price - vwapPrice * 0.995;
     } else {
-      type = 'weak';
+      risk = price * 0.07;
     }
-
-    var tp1, tp2, sl;
-    if (price > 0) {
-      var vol_pct = Math.max(Math.abs(chg) / 100, 0.04);
-      tp1 = price * (1 + Math.min(0.25, Math.max(0.05, vol_pct * 0.8)));
-      tp2 = price * (1 + Math.min(0.45, Math.max(0.10, vol_pct * 1.5)));
-      sl = price * (1 - Math.min(0.12, Math.max(0.03, vol_pct * 0.4)));
-    }
-
-    var labels = {
-      enter: { txt: '🚀 ادخل فوراً', cls: 'enter' },
-      watch: { txt: '👀 مراقبة', cls: 'watch' },
-      wait: { txt: '⏸️ انتظر', cls: 'wait' },
-      weak: { txt: '💤 ضعيف', cls: 'weak' },
-      unstable: { txt: '⚡ غير مستقر', cls: 'unstable' },
-      danger: { txt: '🛑 خطر', cls: 'danger' }
-    };
-
-    s._v = {
-      type: type, label: labels[type].txt, cls: labels[type].cls,
-      momo: momo, signals: signals, risks: risks,
-      tp1: tp1, tp2: tp2, sl: sl, rvol: rvol
-    };
-    return s._v;
+    risk = Math.min(price * 0.10, Math.max(price * 0.03, risk));
+    sl = price - risk;
+    tp1 = price + risk * 1.5;
+    tp2 = price + risk * 3;
   }
+
+  var labels = {
+    enter: { txt: '🚀 ادخل فوراً', cls: 'enter' },
+    watch: { txt: '👀 مراقبة', cls: 'watch' },
+    wait: { txt: '⏸️ انتظر', cls: 'wait' },
+    weak: { txt: '💤 ضعيف', cls: 'weak' },
+    unstable: { txt: '⚡ غير مستقر', cls: 'unstable' },
+    danger: { txt: '🛑 خطر', cls: 'danger' }
+  };
+
+  s._v = {
+    type: type, label: labels[type].txt, cls: labels[type].cls,
+    momo: momo, signals: signals, risks: risks,
+    tp1: tp1, tp2: tp2, sl: sl, rvol: rvol
+  };
+  return s._v;
+}
 
   /* ---------------- 6. تعريف الـ 19 لوحة بتدرجات لونية فخمة (Royal Gradients) ---------------- */
   function P(s) { return num(s.price) || 0; }
@@ -1475,6 +1536,112 @@
     }}
   };
 
+var HIST_MS = 15 * 60 * 1000;   // نحتفظ بآخر 15 دقيقة لكل سهم
+var WIN_MS  = 3 * 60 * 1000;    // نافذة الحركة اللحظية
+var EVT_MS  = 5 * 60 * 1000;    // الحدث يفضل ظاهر 5 دقايق
+var MIN_AGE = 60 * 1000;        // أقل عمر بيانات مقبول لحساب 3 دقايق
+
+var hist = {};      // sym -> [{t,p,v,w}]
+var sessHigh = {};  // sym -> أعلى سعر اتشاف (أو high من الـ API لو موجود)
+var evts = {};      // sym -> {brk, flush, vwapx} (أوقات آخر حدث)
+
+function enrichHistory(s) {
+  var sym = s.symbol;
+  var now = Date.now();
+  var p = num(s.price) || 0;
+  var v = num(s.volume) || 0;
+  var w = num(s.vwapDiff);
+  var h = hist[sym] || (hist[sym] = []);
+  var e = evts[sym] || (evts[sym] = {});
+  var last = h.length ? h[h.length - 1] : null;
+  var prevHigh = sessHigh[sym];
+
+  // أقدم نقطة جوه نافذة الـ 3 دقايق
+  var ref = null;
+  for (var i = 0; i < h.length; i++) {
+    if (now - h[i].t <= WIN_MS) { ref = h[i]; break; }
+  }
+  s._chg3m = null;
+  s._vol3m = 0;
+  if (ref && ref.p > 0 && now - ref.t >= MIN_AGE) {
+    s._chg3m = (p - ref.p) / ref.p * 100;
+    s._vol3m = Math.max(0, v - ref.v);
+  }
+
+  var established = h.length >= 6; // مفيش أحداث قبل ما يبقى فيه تاريخ كفاية
+  function fresh(k) { return !e[k] || now - e[k] > EVT_MS; }
+
+  // كسر قمة بحجم
+  if (established && prevHigh && p > prevHigh && s._vol3m >= 30000 && fresh('brk')) e.brk = now;
+  // Flush: نزول حاد بحجم
+  if (established && s._chg3m != null && s._chg3m <= -3 && s._vol3m >= 50000 && fresh('flush')) e.flush = now;
+  // عبور VWAP لفوق
+  if (last && last.w != null && w != null && last.w <= 0 && w > 0 && fresh('vwapx')) e.vwapx = now;
+
+  sessHigh[sym] = Math.max(prevHigh || 0, p, num(s.high) || 0);
+
+  h.push({ t: now, p: p, v: v, w: w });
+  while (h.length && h[0].t < now - HIST_MS) h.shift();
+}
+
+function evtActive(s, k) {
+  var e = evts[s.symbol];
+  return !!(e && e[k] && Date.now() - e[k] < EVT_MS);
+}
+function evtTime(s, k) { var e = evts[s.symbol]; return (e && e[k]) || 0; }
+function lastEvtTime(s) {
+  var e = evts[s.symbol] || {};
+  return Math.max(e.brk || 0, e.flush || 0, e.vwapx || 0);
+}
+
+/* ---------------- أعمدة جديدة ---------------- */
+COLS.chg3 = { h: '3M%', cls: 'col-chg', f: function (s) {
+  var c = s._chg3m;
+  return c == null ? '—' : '<span class="' + (c >= 0 ? 'up' : 'down') + '">' + (c >= 0 ? '+' : '') + fmt(c, 1) + '%</span>';
+}};
+COLS.vol3 = { h: 'VOL 3M', cls: 'col-rvol', f: function (s) {
+  return s._vol3m > 0 ? fmtBig(s._vol3m) : '—';
+}};
+COLS.ago = { h: 'AGO', cls: 'col-flt', f: function (s) {
+  var t = lastEvtTime(s);
+  if (!t) return '—';
+  var sec = Math.floor((Date.now() - t) / 1000);
+  return Math.floor(sec / 60) + 'm' + pad2(sec % 60);
+}};
+
+/* ---------------- لوحات الأحداث ---------------- */
+var EVENT_PANELS = [
+  { num: 20, id: 'breakhigh', title: 'BREAKING HIGH WITH VOLUME', color: '#a3e635',
+    rbg: 'linear-gradient(160deg, #1a2e05 0%, #3f6212 100%)', cols: ['price', 'ago', 'vol3', 'sprd'],
+    test: function (s) { return evtActive(s, 'brk') && P(s) >= 1; },
+    sort: function (a, b) { return evtTime(b, 'brk') - evtTime(a, 'brk'); } },
+
+  { num: 21, id: 'possentry', title: 'POSSIBLE ENTRY', color: '#fdba74',
+    rbg: 'linear-gradient(160deg, #431407 0%, #9a3412 100%)', cols: ['price', 'ago', 'rvol', 'sprd'],
+    test: function (s) {
+      return evtActive(s, 'brk') && isHealthy(s) && P(s) >= 1 && R(s) >= 1.5 && C(s) >= 3 && (s._spread || 0) <= Math.max(0.05, P(s) * 0.01);
+    },
+    sort: function (a, b) { return evtTime(b, 'brk') - evtTime(a, 'brk'); } },
+
+  { num: 22, id: 'vwapcross', title: 'VWAP CROSS UP', color: '#22d3ee',
+    rbg: 'linear-gradient(160deg, #083344 0%, #155e75 100%)', cols: ['price', 'ago', 'vwap', 'vol'],
+    test: function (s) { return evtActive(s, 'vwapx') && P(s) >= 1; },
+    sort: function (a, b) { return evtTime(b, 'vwapx') - evtTime(a, 'vwapx'); } },
+
+  { num: 23, id: 'flush', title: 'FLUSH (تحذير)', color: '#fb7185',
+    rbg: 'linear-gradient(160deg, #4c0519 0%, #881337 100%)', cols: ['price', 'ago', 'chg3', 'vol3'],
+    test: function (s) { return evtActive(s, 'flush'); },
+    sort: function (a, b) { return evtTime(b, 'flush') - evtTime(a, 'flush'); } },
+
+  { num: 1, id: 'topmovers', title: 'TOP MOVERS (3 MIN)', color: '#fb923c',
+    rbg: 'linear-gradient(160deg, #431407 0%, #9a3412 100%)', cols: ['price', 'chg3', 'vol', 'vol3'],
+    test: function (s) { return s._chg3m != null && Math.abs(s._chg3m) >= 2 && s._vol3m >= 20000 && V(s) >= 250000; },
+    sort: function (a, b) { return Math.abs(b._chg3m) - Math.abs(a._chg3m); } }
+];
+
+// الأحداث في الأول، واستبدال TOP MOVERS القديمة
+PANELS = EVENT_PANELS.concat(PANELS.filter(function (p) { return p.id !== 'topmovers'; }));
+
   /* ---------------- 7. بناء اللوحات والرادار التفاعلي ---------------- */
   function renderPanels(rows) {
     if (!panelsEl) return;
@@ -1491,6 +1658,8 @@
       var list = rows.filter(function (s) {
         if (!s || !s.symbol) return false;
         if (q && s.symbol.toUpperCase().indexOf(q) === -1) return false;
+        var longOnly = ['losers', 'halt', 'largecaps', 'flush'].indexOf(p.id) === -1;
+        if (longOnly && !isHealthy(s)) return false;
         return p.test(s);
       }).sort(p.sort);
 
@@ -1499,7 +1668,7 @@
       var sliced = list.slice(0, maxRows);
 
       sliced.forEach(function (s) {
-        symPanelCount[s.symbol] = (symPanelCount[s.symbol] || 0) + 1;
+        if (p.id !== 'flush') symPanelCount[s.symbol] = (symPanelCount[s.symbol] || 0) + 1;
       });
 
       var prev = prevPanelSyms[p.id] || null;
@@ -2077,6 +2246,7 @@
             if (!s || !s.symbol || map[s.symbol]) return;
             map[s.symbol] = true;
             enrichStockMetrics(s);
+            enrichHistory(s);
             all.push(s);
           });
         });
@@ -2107,6 +2277,8 @@
           if (chgMin != null && C(s) < chgMin) return false;
           if (rvMin != null && rvMin > 0 && R(s) < rvMin) return false;
           if (vFilter && computeVerdict(s).type !== vFilter) return false;
+          if (!isHealthy(s)) return false;
+          if (P(s) < 1) return false;
           return true;
         });
 
