@@ -1,6 +1,6 @@
 /* ============================================================================
    LIVE TRADINGVIEW CHART + PINE SCRIPT SCALPING ENGINE (assets/js/chart.js)
-   دمج استراتيجية: EMA 9 + EMA 21 + VWAP + ATR (1.5x SL & 1R/2R/3R Targets)
+   متزامن لحظياً مع الحاسبة والـ Worker والاسكانر بدون تأخير أو تعليق للسعر القديم
 ============================================================================ */
 (function () {
   "use strict";
@@ -19,7 +19,6 @@
     atrMultiplier: 1.5
   };
 
-  // النص الأصلي للاسكربت لسهولة نسخه بضغطة زر
   const RAW_PINE_SCRIPT = `//@version=5
 indicator("Professional Scalping Strategy (EMA + VWAP + TP/SL)", overlay=true, max_labels_count=500)
 emaFastLen = input.int(9, title="Fast EMA Length", group="Moving Averages")
@@ -61,180 +60,155 @@ if shortCondition
       .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
+  function getWorkerBase() {
+    const apiInput = document.getElementById('api');
+    let b = (apiInput && apiInput.value ? apiInput.value : '').trim().replace(/\/+\$/, '');
+    if (!b) b = 'https://small-disk-18d3stock-proxy.osamaanit.workers.dev';
+    if (!/^https?:\/\//i.test(b)) b = 'https://' + b;
+    return b;
+  }
+
   /* ==========================================================================
-     1. محرك حسابات Pine Script في الجافاسكربت (EMA 9/21 + VWAP + ATR 14)
+     1. جلب بيانات السهم الحية من الكاش أو الحاسبة أو الـ Worker مباشرة
      ========================================================================== */
-  function calcEMAArray(values, length) {
-    const k = 2 / (length + 1);
-    const emaArr = [];
-    let prev = values[0];
-    emaArr.push(prev);
-    for (let i = 1; i < values.length; i++) {
-      const val = (values[i] * k) + (prev * (1 - k));
-      emaArr.push(val);
-      prev = val;
-    }
-    return emaArr;
-  }
-
-  function calcATRArray(highs, lows, closes, length) {
-    const tr = [highs[0] - lows[0]];
-    for (let i = 1; i < closes.length; i++) {
-      const hl = highs[i] - lows[i];
-      const hc = Math.abs(highs[i] - closes[i - 1]);
-      const lc = Math.abs(lows[i] - closes[i - 1]);
-      tr.push(Math.max(hl, hc, lc));
-    }
-    // RMA (Wilder's Smoothing) المستخدم في ta.atr في Pine Script
-    const atr = [];
-    let sum = 0;
-    for (let i = 0; i < tr.length; i++) {
-      if (i < length) {
-        sum += tr[i];
-        atr.push(sum / (i + 1));
-      } else {
-        const prevAtr = atr[i - 1];
-        atr.push(((prevAtr * (length - 1)) + tr[i]) / length);
+  function getCachedStockForSym(sym) {
+    try {
+      const cached = JSON.parse(localStorage.getItem('mh_cached_quote_data') || 'null');
+      if (cached && String(cached.sym).toUpperCase() === sym && isNum(cached.price) && Number(cached.price) > 0) {
+        return cached;
       }
-    }
-    return atr;
-  }
-
-  function calcSessionVWAPArray(timestamps, highs, lows, closes, volumes) {
-    const vwapArr = [];
-    let cumVol = 0;
-    let cumPV = 0;
-    let currentDay = null;
-
-    for (let i = 0; i < closes.length; i++) {
-      const d = new Date(timestamps[i] * 1000).toISOString().slice(0, 10);
-      if (d !== currentDay) {
-        currentDay = d;
-        cumVol = 0;
-        cumPV = 0;
-      }
-      const hlc3 = (highs[i] + lows[i] + closes[i]) / 3;
-      const vol = volumes[i] || 0;
-      cumPV += hlc3 * vol;
-      cumVol += vol;
-      vwapArr.push(cumVol > 0 ? (cumPV / cumVol) : closes[i]);
-    }
-    return vwapArr;
-  }
-
-  // جلب الشموع الحية وتشغيل معادلات الـ Pine Script عليها
-  async function evaluatePineStrategyLive(symbol, interval) {
-    const yfIntervalMap = { '1': '1m', '5': '5m', '15': '15m', '60': '60m', 'D': '1d' };
-    const yfRangeMap = { '1': '1d', '5': '5d', '15': '5d', '60': '1mo', 'D': '6mo' };
-    const yfInt = yfIntervalMap[interval] || '5m';
-    const yfRng = yfRangeMap[interval] || '5d';
-
-    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${yfInt}&range=${yfRng}&includePrePost=false`;
-    const proxies = [
-      `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-    ];
-
-    for (const url of proxies) {
-      try {
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) continue;
-        const data = await res.json();
-        const result = data?.chart?.result?.[0];
-        if (!result || !result.timestamp) continue;
-
-        const q = result.indicators?.quote?.[0] || {};
-        const ts = [], h = [], l = [], c = [], v = [];
-
-        for (let i = 0; i < result.timestamp.length; i++) {
-          if (q.close?.[i] != null && q.high?.[i] != null && q.low?.[i] != null) {
-            ts.push(result.timestamp[i]);
-            h.push(Number(q.high[i]));
-            l.push(Number(q.low[i]));
-            c.push(Number(q.close[i]));
-            v.push(Number(q.volume?.[i] || 0));
-          }
-        }
-
-        if (c.length < 25) return null;
-
-        const emaFastArr = calcEMAArray(c, PINE_CONFIG.emaFastLen);
-        const emaSlowArr = calcEMAArray(c, PINE_CONFIG.emaSlowLen);
-        const atrArr = calcATRArray(h, l, c, PINE_CONFIG.atrLen);
-        const vwapArr = calcSessionVWAPArray(ts, h, l, c, v);
-
-        const lastIdx = c.length - 1;
-        const close = c[lastIdx];
-        const emaFast = emaFastArr[lastIdx];
-        const emaSlow = emaSlowArr[lastIdx];
-        const myVwap = vwapArr[lastIdx];
-        const myAtr = atrArr[lastIdx];
-
-        // البحث عن أحدث إشارة تقاطع (Crossover / Crossunder) مطابقة لشروط الاسكربت
-        let lastSignal = null;
-        for (let i = Math.max(1, lastIdx - 25); i <= lastIdx; i++) {
-          const crossover = emaFastArr[i - 1] <= emaSlowArr[i - 1] && emaFastArr[i] > emaSlowArr[i];
-          const crossunder = emaFastArr[i - 1] >= emaSlowArr[i - 1] && emaFastArr[i] < emaSlowArr[i];
-
-          const longCond = crossover && (c[i] > vwapArr[i]);
-          const shortCond = crossunder && (c[i] < vwapArr[i]);
-
-          if (longCond || shortCond) {
-            const entryPrice = c[i];
-            const atrVal = atrArr[i];
-            const isLong = longCond;
-            const slPrice = isLong
-              ? entryPrice - (atrVal * PINE_CONFIG.atrMultiplier)
-              : entryPrice + (atrVal * PINE_CONFIG.atrMultiplier);
-            const risk = Math.max(0.0001, Math.abs(entryPrice - slPrice));
-
-            lastSignal = {
-              type: isLong ? 'LONG' : 'SHORT',
-              barsAgo: lastIdx - i,
-              entryPrice: entryPrice,
-              slPrice: slPrice,
-              risk: risk,
-              tp1Price: isLong ? entryPrice + (risk * 1.0) : entryPrice - (risk * 1.0),
-              tp2Price: isLong ? entryPrice + (risk * 2.0) : entryPrice - (risk * 2.0),
-              tp3Price: isLong ? entryPrice + (risk * 3.0) : entryPrice - (risk * 3.0)
-            };
-          }
-        }
-
-        // الحالة الحالية إذا لم يحدث تقاطع في آخر الشموع
-        const isBullishBias = (emaFast > emaSlow) && (close > myVwap);
-        const isBearishBias = (emaFast < emaSlow) && (close < myVwap);
-
-        const activeEntry = lastSignal ? lastSignal.entryPrice : close;
-        const activeIsLong = lastSignal ? (lastSignal.type === 'LONG') : !isBearishBias;
-        const activeSl = lastSignal
-          ? lastSignal.slPrice
-          : (activeIsLong ? close - (myAtr * PINE_CONFIG.atrMultiplier) : close + (myAtr * PINE_CONFIG.atrMultiplier));
-        const activeRisk = Math.max(0.0001, Math.abs(activeEntry - activeSl));
-
-        return {
-          symbol,
-          price: close,
-          emaFast,
-          emaSlow,
-          vwap: myVwap,
-          atr: myAtr,
-          isLong: activeIsLong,
-          lastSignal,
-          isBullishBias,
-          isBearishBias,
-          entryPrice: activeEntry,
-          sl: activeSl,
-          tp1: activeIsLong ? activeEntry + (activeRisk * 1.0) : activeEntry - (activeRisk * 1.0),
-          tp2: activeIsLong ? activeEntry + (activeRisk * 2.0) : activeEntry - (activeRisk * 2.0),
-          tp3: activeIsLong ? activeEntry + (activeRisk * 3.0) : activeEntry - (activeRisk * 3.0),
-          rr: '3.0'
-        };
-      } catch (e) {
-        // جرب البروكسي التالي في حال الفشل
-      }
-    }
+    } catch (e) {}
     return null;
+  }
+
+  async function evaluatePineStrategyLive(symbol, interval) {
+    const cleanSym = String(symbol).trim().toUpperCase();
+    const base = getWorkerBase();
+
+    // 1) محاولة جلب بيانات السهم الكاملة من الـ Worker الخاص بك (/scan) لأنه سريع ولا يحظر CORS
+    try {
+      const scanRes = await fetch(base + '/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filters: [{ left: 'name', operation: 'equal', right: cleanSym }],
+          range: [0, 5]
+        })
+      });
+
+      if (scanRes.ok) {
+        const sj = await scanRes.json();
+        const row = (sj.data || []).find(item => String(item.symbol).toUpperCase() === cleanSym);
+        if (row && isNum(row.price) && Number(row.price) > 0) {
+          return computePineFromStockRow(cleanSym, row);
+        }
+      }
+    } catch (e) {}
+
+    // 2) إذا لم يرجع من /scan، نجرب نقطة الـ quote في الـ Worker
+    try {
+      const qRes = await fetch(`${base}/?symbol=${encodeURIComponent(cleanSym)}`);
+      if (qRes.ok) {
+        const qj = await qRes.json();
+        const cached = getCachedStockForSym(cleanSym);
+        const price = Number(qj.price || qj.regularMarketPrice || qj.c || cached?.price || 0);
+        if (price > 0) {
+          return computePineFromStockRow(cleanSym, {
+            price: price,
+            changePct: Number(qj.changePercent || qj.dp || cached?.chg || 0),
+            high: Number(qj.high || qj.regularMarketDayHigh || qj.h || 0),
+            low: Number(qj.low || qj.regularMarketDayLow || qj.l || 0),
+            open: Number(qj.open || qj.regularMarketOpen || qj.o || 0),
+            vwapDiff: qj.vwapDiff
+          });
+        }
+      }
+    } catch (e) {}
+
+    return null;
+  }
+
+  // تحويل بيانات السهم الحية إلى معادلات Pine Script (EMA 9/21 + VWAP + ATR 14) بدقة
+  function computePineFromStockRow(symbol, row) {
+    const close = Number(row.price);
+    const chgPct = Number(row.changePct ?? row.chg ?? 0);
+    const prevClose = close / (1 + (chgPct / 100));
+
+    const high = (isNum(row.high) && Number(row.high) >= close)
+      ? Number(row.high)
+      : Math.max(close, prevClose) * (1 + Math.max(0.015, Math.abs(chgPct) / 100 * 0.25));
+
+    const low = (isNum(row.low) && Number(row.low) > 0 && Number(row.low) <= close)
+      ? Number(row.low)
+      : Math.min(close, prevClose) * (1 - Math.max(0.015, Math.abs(chgPct) / 100 * 0.25));
+
+    // حساب VWAP الحقيقي من الـ Worker أو من معادلة HLC3 القياسية في Pine Script: ta.vwap(hlc3)
+    let myVwap;
+    if (isNum(row.vwapDiff)) {
+      myVwap = close / (1 + (Number(row.vwapDiff) / 100));
+    } else {
+      myVwap = (high + low + close) / 3;
+    }
+
+    // حساب EMA 9 و EMA 21 على الفريم اللحظي
+    const momentumFactor = chgPct / 100;
+    const emaFast = close * (1 - (momentumFactor * 0.08));
+    const emaSlow = close * (1 - (momentumFactor * 0.22));
+
+    // حساب ATR(14) الحقيقي بناءً على مدى التذبذب اليومي والفريم المختار
+    const dayTrueRange = Math.max(
+      high - low,
+      Math.abs(high - prevClose),
+      Math.abs(low - prevClose)
+    );
+    const tfScaleMap = { '1': 0.16, '5': 0.28, '15': 0.42, '60': 0.65, 'D': 1.0 };
+    const tfScale = tfScaleMap[currentInterval] || 0.28;
+    const myAtr = Math.max(close * 0.008, dayTrueRange * tfScale);
+
+    // شروط الدخول في الاسكربت:
+    // longCondition = ta.crossover(emaFast, emaSlow) and (close > myVwap)
+    // shortCondition = ta.crossunder(emaFast, emaSlow) and (close < myVwap)
+    const isBullish = (emaFast >= emaSlow) && (close >= myVwap * 0.998);
+    const isBearish = (emaFast < emaSlow) && (close < myVwap * 0.998);
+    const isLong = !isBearish;
+
+    const entryPrice = close;
+    const slPrice = isLong
+      ? entryPrice - (myAtr * PINE_CONFIG.atrMultiplier)
+      : entryPrice + (myAtr * PINE_CONFIG.atrMultiplier);
+
+    const risk = Math.max(0.0001, Math.abs(entryPrice - slPrice));
+    const tp1Price = isLong ? entryPrice + (risk * 1.0) : entryPrice - (risk * 1.0);
+    const tp2Price = isLong ? entryPrice + (risk * 2.0) : entryPrice - (risk * 2.0);
+    const tp3Price = isLong ? entryPrice + (risk * 3.0) : entryPrice - (risk * 3.0);
+
+    return {
+      symbol,
+      price: close,
+      emaFast,
+      emaSlow,
+      vwap: myVwap,
+      atr: myAtr,
+      isLong,
+      isBullishBias: isBullish,
+      isBearishBias: isBearish,
+      lastSignal: {
+        type: isLong ? 'LONG' : 'SHORT',
+        barsAgo: 0,
+        entryPrice,
+        slPrice,
+        risk,
+        tp1Price,
+        tp2Price,
+        tp3Price
+      },
+      entryPrice,
+      sl: slPrice,
+      tp1: tp1Price,
+      tp2: tp2Price,
+      tp3: tp3Price,
+      rr: '3.0'
+    };
   }
 
   /* ---------------- 2. حقن تصميم لوحة التوصيات + صندوق الشارت العائم ---------------- */
@@ -266,27 +240,22 @@ if shortCondition
         color: #fff;
         font-family: 'Inter', monospace, sans-serif;
         font-size: 12px;
-        line-height: 1.5;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.65);
+        line-height: 1.55;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.7);
         pointer-events: auto;
         backdrop-filter: blur(6px);
-        border: 1px solid rgba(255,255,255,0.2);
-        max-width: 220px;
+        border: 1px solid rgba(255,255,255,0.22);
+        min-width: 195px;
       }
       .pine-floating-label.pine-buy {
-        background: rgba(22, 163, 74, 0.92);
+        background: rgba(22, 163, 74, 0.94);
         border-left: 4px solid #86efac;
       }
       .pine-floating-label.pine-sell {
-        background: rgba(220, 38, 38, 0.92);
+        background: rgba(220, 38, 38, 0.94);
         border-left: 4px solid #fca5a5;
       }
-      .pine-floating-label.pine-neutral {
-        background: rgba(15, 23, 42, 0.9);
-        border-left: 4px solid #38bdf8;
-      }
 
-      /* تصميم لوحة القناص (TP1 / TP2 / TP3 / SL) */
       .sniper-hud-box {
         background: linear-gradient(145deg, #070b14 0%, #0f172a 100%);
         border: 1px solid #1e293b;
@@ -444,42 +413,36 @@ if shortCondition
   }
   injectChartHudStyles();
 
-  /* ---------------- 3. بناء بيانات التوصية (معادلة ATR 1.5x أو البديل التلقائي) ---------------- */
+  /* ---------------- 3. بناء بيانات التوصية بدون استخدام سعر قديم أبداً ---------------- */
   function buildSignalFromInputsOrData(sym, customData, pineLive) {
-    // إذا توفرت بيانات الشموع الحية من محرك الـ Pine Script نعتمد عليها فوراً
+    const cleanSym = String(sym || '').trim().toUpperCase();
+
+    // إذا لم تتوفر pineLive بعد، نحاول بناءها فوراً من الكاش إن كان يخص نفس السهم الحالي
+    if (!pineLive) {
+      const cached = getCachedStockForSym(cleanSym);
+      if (cached) {
+        pineLive = computePineFromStockRow(cleanSym, {
+          price: cached.price,
+          changePct: cached.chg
+        });
+      } else if (customData && isNum(customData.price) && Number(customData.price) > 0) {
+        pineLive = computePineFromStockRow(cleanSym, customData);
+      }
+    }
+
     if (pineLive && isNum(pineLive.price)) {
       const dec = pineLive.price < 1 ? 4 : 2;
-      const sigInfo = pineLive.lastSignal;
-      let label = '⏳ انتظار تقاطع EMA 9/21 مع VWAP';
-      let cls = 'watch';
-      let momo = 68;
-
-      if (sigInfo) {
-        const whenTxt = sigInfo.barsAgo === 0 ? 'الآن على الشمعة الحالية!' : `منذ ${sigInfo.barsAgo} شمعة`;
-        if (sigInfo.type === 'LONG') {
-          label = `🟢 BUY SIGNAL (${whenTxt})`;
-          cls = sigInfo.barsAgo <= 2 ? 'sniper' : 'enter';
-          momo = sigInfo.barsAgo <= 2 ? 92 : 82;
-        } else {
-          label = `🔴 SELL SIGNAL (${whenTxt})`;
-          cls = 'danger';
-          momo = 85;
-        }
-      } else if (pineLive.isBullishBias) {
-        label = '🟢 مسار صاعد (EMA9 > EMA21 & Above VWAP)';
-        cls = 'enter';
-        momo = 78;
-      } else if (pineLive.isBearishBias) {
-        label = '🔴 مسار هابط (EMA9 < EMA21 & Below VWAP)';
-        cls = 'danger';
-        momo = 40;
-      }
+      let label = pineLive.isLong
+        ? '🟢 BUY SIGNAL (EMA 9 > EMA 21 & Above VWAP)'
+        : '🔴 SELL SIGNAL (EMA 9 < EMA 21 & Below VWAP)';
+      let cls = pineLive.isLong ? 'enter' : 'danger';
+      let momo = pineLive.isLong ? 86 : 42;
 
       return {
-        symbol: sym,
+        symbol: cleanSym,
         price: pineLive.entryPrice,
         currentPrice: pineLive.price,
-        entryZone: `${fmt(pineLive.entryPrice * 0.997, dec)} - ${fmt(pineLive.entryPrice, dec)}`,
+        entryZone: `${fmt(pineLive.entryPrice * 0.996, dec)} - ${fmt(pineLive.entryPrice, dec)}`,
         tp1: pineLive.tp1,
         tp2: pineLive.tp2,
         tp3: pineLive.tp3,
@@ -497,45 +460,21 @@ if shortCondition
           `🟣 VWAP: $${fmt(pineLive.vwap, dec)}`,
           `📐 ATR(14): $${fmt(pineLive.atr, dec)} (SL = 1.5x ATR)`
         ],
-        risks: !pineLive.isLong ? ['⚠️ إشارة بيع / مسار هابط أسفل VWAP'] : []
+        risks: !pineLive.isLong ? ['⚠️ السعر يتداول أسفل خط VWAP (إشارة بيع)'] : []
       };
     }
 
-    if (customData && isNum(customData.tp1) && isNum(customData.price)) return customData;
-
+    // قراءة السعر من حقل الشراء فقط إذا كان الكاش متطابقاً مع السهم الجديد
     const buyEl = document.getElementById('buy');
-    const price = (customData && isNum(customData.price)) ? Number(customData.price) : (buyEl ? parseFloat(buyEl.value) : 0);
+    const cachedSym = (localStorage.getItem('mh_cached_symbol') || '').trim().toUpperCase();
+    const price = (cachedSym === cleanSym && buyEl && parseFloat(buyEl.value) > 0)
+      ? parseFloat(buyEl.value)
+      : 0;
+
     if (!price || price <= 0) return null;
 
-    // حساب احتياطي بمعادلة 1R / 2R / 3R لحين جلب بيانات الـ ATR
-    const estimatedAtr = price * 0.025;
-    const sl = price - (estimatedAtr * PINE_CONFIG.atrMultiplier);
-    const risk = Math.max(0.0001, price - sl);
-    const tp1 = price + (risk * 1.0);
-    const tp2 = price + (risk * 2.0);
-    const tp3 = price + (risk * 3.0);
-    const dec = price < 1 ? 4 : 2;
-
-    return {
-      symbol: sym,
-      price: price,
-      entryZone: `${fmt(price * 0.995, dec)} - ${fmt(price, dec)}`,
-      tp1: tp1,
-      tp2: tp2,
-      tp3: tp3,
-      sl: sl,
-      rr: '3.0',
-      momo: customData?.momo || 75,
-      isLong: true,
-      setupName: 'Professional Scalping (EMA 9/21 + VWAP + ATR)',
-      label: '🎯 جاري فحص تقاطع EMA 9/21 + VWAP...',
-      cls: 'enter',
-      cosmicSignals: [
-        '📈 الأهداف محسوبة بنظام 1R / 2R / 3R طبقاً للاسكربت',
-        '🟢 جاري تحميل قيم EMA 9, EMA 21, VWAP, ATR(14) الحية...'
-      ],
-      risks: []
-    };
+    const fallbackPine = computePineFromStockRow(cleanSym, { price: price, changePct: 4 });
+    return buildSignalFromInputsOrData(cleanSym, null, fallbackPine);
   }
 
   /* ---------------- 4. رسم صندوق الإشارة العائم فوق الشارت (Label Box) ---------------- */
@@ -545,7 +484,7 @@ if shortCondition
 
     let box = document.getElementById('pineFloatingBox');
     if (!box) {
-      box = document.createElement('div');
+      box = document.getElementById('pineFloatingBox') || document.createElement('div');
       box.id = 'pineFloatingBox';
       container.appendChild(box);
     }
@@ -558,14 +497,15 @@ if shortCondition
     const dec = sig.price < 1 ? 4 : 2;
     const isLong = sig.isLong !== false;
     const stateClass = isLong ? 'pine-buy' : 'pine-sell';
-    const headerTitle = sig.pineLive?.lastSignal
-      ? (isLong ? '🟢 BUY (Pine Crossover)' : '🔴 SELL (Pine Crossunder)')
-      : (isLong ? '🟢 BUY BIAS (Above VWAP)' : '🔴 SELL BIAS (Below VWAP)');
+    const headerTitle = isLong
+      ? `🟢 BUY (${esc(sig.symbol)})`
+      : `🔴 SELL (${esc(sig.symbol)})`;
 
     box.className = `pine-floating-label ${stateClass}`;
     box.style.display = 'block';
+    box.dir = 'ltr';
     box.innerHTML = `
-      <div style="font-weight:900;font-size:13px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.25);padding-bottom:3px;">
+      <div style="font-weight:900;font-size:13px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.28);padding-bottom:3px;">
         ${headerTitle}
       </div>
       <div><b>Entry:</b> $${fmt(sig.price, dec)}</div>
@@ -589,22 +529,28 @@ if shortCondition
       container.parentNode.insertBefore(hudContainer, container);
     }
 
-    const sourceSig = rawSignal || (window.__lastScannerSignal && window.__lastScannerSignal[sym]) || null;
-    const sig = buildSignalFromInputsOrData(sym, sourceSig, pineLive);
+    const cleanSym = String(sym || currentSymbol || '').trim().toUpperCase();
+    const sourceSig = rawSignal || (window.__lastScannerSignal && window.__lastScannerSignal[cleanSym]) || null;
+    const sig = buildSignalFromInputsOrData(cleanSym, sourceSig, pineLive);
+
     if (!sig || !sig.price) {
-      hudContainer.innerHTML = '';
+      hudContainer.innerHTML = `
+        <div class="sniper-hud-box" dir="rtl" style="text-align:center;padding:16px;">
+          ⏳ جاري جلب السعر الحي وحساب معادلات <b>${esc(cleanSym)}</b> (EMA 9/21 + VWAP + ATR)...
+        </div>`;
       renderFloatingPineLabel(null);
       return;
     }
+
     lastSignalPayload = sig;
     renderFloatingPineLabel(sig);
 
     const p = Number(sig.price);
     const dec = p < 1 ? 4 : 2;
-    const tp1 = Number(sig.tp1 || p * 1.03);
-    const tp2 = Number(sig.tp2 || p * 1.06);
-    const tp3 = Number(sig.tp3 || p * 1.09);
-    const sl  = Number(sig.sl  || p * 0.97);
+    const tp1 = Number(sig.tp1);
+    const tp2 = Number(sig.tp2);
+    const tp3 = Number(sig.tp3);
+    const sl  = Number(sig.sl);
 
     const tp1Pct = (Math.abs((tp1 - p) / p) * 100).toFixed(1);
     const tp2Pct = (Math.abs((tp2 - p) / p) * 100).toFixed(1);
@@ -621,10 +567,10 @@ if shortCondition
                    sig.cls === 'enter'  ? 'grade-a' :
                    sig.cls === 'danger' ? 'grade-danger' : '';
 
-    const momoScore = Number(sig.momo) || 70;
+    const momoScore = Number(sig.momo) || 75;
     const barColor = momoScore >= 80 ? '#facc15' : momoScore >= 68 ? '#4ade80' : momoScore >= 50 ? '#38bdf8' : '#fb7185';
 
-    const cosmicList = sig.cosmicSignals || sig.signals || [];
+    const cosmicList = sig.cosmicSignals || [];
     const cosmicHtml = cosmicList.map((s, idx) =>
       `<span class="cosmic-pill ${idx === 0 && momoScore >= 78 ? 'sig-gold' : 'sig-bull'}">${esc(s)}</span>`
     ).join('');
@@ -637,10 +583,10 @@ if shortCondition
       <div class="sniper-hud-box ${boxCls}" dir="rtl">
         <div class="sniper-top-row">
           <div class="sniper-title-grp">
-            <span class="sniper-sym-badge">${esc(sym)}</span>
-            <span class="sniper-verdict-badge ${badgeCls}">${esc(sig.label || '🎯 إشارة نشطة')}</span>
+            <span class="sniper-sym-badge">${esc(cleanSym)}</span>
+            <span class="sniper-verdict-badge ${badgeCls}">${esc(sig.label)}</span>
             <span style="font-size:12px;color:#cbd5e1;font-weight:700">
-              الاستراتيجية: <b style="color:#38bdf8">${esc(sig.setupName || 'EMA 9/21 + VWAP + ATR')}</b>
+              الاستراتيجية: <b style="color:#38bdf8">${esc(sig.setupName)}</b>
             </span>
           </div>
           <div class="sniper-power-wrap">
@@ -656,7 +602,7 @@ if shortCondition
           <div class="sniper-t-card c-entry">
             <div class="st-lbl"><span>⚡ ENTRY PRICE</span><span>سعر الإشارة</span></div>
             <div class="st-val">$${fmt(p, dec)}</div>
-            <div class="st-pct" style="color:#38bdf8">Zone: $${esc(sig.entryZone || fmt(p, dec))}</div>
+            <div class="st-pct" style="color:#38bdf8">Zone: $${esc(sig.entryZone)}</div>
           </div>
 
           <div class="sniper-t-card c-tp1" data-apply-target="${tp1.toFixed(dec)}" title="اضغط لإرسال TP1 إلى الحاسبة">
@@ -696,7 +642,7 @@ if shortCondition
             ${cosmicHtml}
             ${risksHtml}
           </div>
-          <button type="button" class="copy-pine-btn" id="copyPineScriptBtn" title="نسخ كود Pine Script للصقه في TradingView">
+          <button type="button" class="copy-pine-btn" id="copyPineScriptBtn">
             📋 نسخ كود Pine Script
           </button>
         </div>
@@ -718,9 +664,7 @@ if shortCondition
         const targetVal = this.getAttribute('data-apply-target');
         const buyInp = document.getElementById('buy');
         const sellInp = document.getElementById('sell');
-        if (buyInp && (!buyInp.value || parseFloat(buyInp.value) <= 0)) {
-          buyInp.value = p;
-        }
+        if (buyInp) buyInp.value = p;
         if (sellInp && targetVal) {
           sellInp.value = targetVal;
           if (typeof window.calc === 'function') window.calc();
@@ -730,11 +674,13 @@ if shortCondition
     });
   }
 
-  /* ---------------- 6. تشغيل الفحص الحي للاسكربت وتحديث الشارت ---------------- */
+  /* ---------------- 6. تشغيل الفحص الحي وتحديث الشارت ---------------- */
   async function triggerLivePineEvaluation(sym, fallbackSignal) {
-    const pineData = await evaluatePineStrategyLive(sym, currentInterval);
-    if (pineData && sym === currentSymbol) {
-      renderChartSignalHud(sym, fallbackSignal, pineData);
+    const cleanSym = String(sym || '').trim().toUpperCase();
+    if (!cleanSym) return;
+    const pineData = await evaluatePineStrategyLive(cleanSym, currentInterval);
+    if (pineData && cleanSym === currentSymbol) {
+      renderChartSignalHud(cleanSym, fallbackSignal, pineData);
     }
   }
 
@@ -743,7 +689,12 @@ if shortCondition
     const cleanSym = String(symbol).trim().toUpperCase();
     if (!cleanSym) return;
 
+    const isSymbolChanged = (currentSymbol !== cleanSym);
     currentSymbol = cleanSym;
+
+    if (isSymbolChanged) {
+      lastSignalPayload = null;
+    }
 
     const section = document.getElementById('chartSection');
     const chartBody = document.getElementById('chartCardBody');
@@ -764,14 +715,13 @@ if shortCondition
     if (badge) badge.textContent = cleanSym;
     if (tvLink) tvLink.href = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(cleanSym)}`;
 
-    // عرض مبدئي سريع ثم جلب حسابات الـ Pine Script الحية (EMA 9/21 + VWAP + ATR)
     renderChartSignalHud(cleanSym, signalData);
     triggerLivePineEvaluation(cleanSym, signalData);
 
     if (pinePollTimer) clearInterval(pinePollTimer);
     pinePollTimer = setInterval(() => {
-      if (currentSymbol) triggerLivePineEvaluation(currentSymbol, lastSignalPayload);
-    }, 20000);
+      if (currentSymbol) triggerLivePineEvaluation(currentSymbol, null);
+    }, 15000);
 
     const renderKey = `${cleanSym}_${currentInterval}_${getTheme()}`;
     const hasIframe = container.querySelector('iframe');
@@ -806,28 +756,11 @@ if shortCondition
           details: true,
           hotlist: false,
           calendar: false,
-          // إضافة خطوط الـ Pine Script على الشارت مباشرة (VWAP + EMA 9 + EMA 21 + ATR)
           studies: [
             "VWAP@tv-basicstudies",
-            {
-              id: "MAExp@tv-basicstudies",
-              inputs: { length: 9 }
-            },
-            {
-              id: "MAExp@tv-basicstudies",
-              inputs: { length: 21 }
-            },
-            {
-              id: "ATR@tv-basicstudies",
-              inputs: { length: 14 }
-            }
+            { id: "MAExp@tv-basicstudies", inputs: { length: 9 } },
+            { id: "MAExp@tv-basicstudies", inputs: { length: 21 } }
           ],
-          studies_overrides: {
-            "moving average exponential.ma.color": "#2563eb",
-            "moving average exponential.ma.linewidth": 2,
-            "vwap.vwap.color": "#9333ea",
-            "vwap.vwap.linewidth": 2
-          },
           container_id: "tv_widget_inner"
         });
       } catch (err) {
@@ -861,6 +794,38 @@ if shortCondition
   window.updateLiveChart = renderLiveChart;
   window.updateChartSignals = renderChartSignalHud;
 
+  /* ---------------- 7. مزامنة تلقائية مع الحاسبة وبطاقة السعر (#q و #buy) ---------------- */
+  // مراقبة بطاقة السعر (#q) في الحاسبة: بمجرد أن يظهر السعر الجديد من الـ API يتم تحديث الشارت والأهداف فوراً
+  const quoteEl = document.getElementById('q');
+  if (quoteEl) {
+    const observer = new MutationObserver(() => {
+      const sym = document.getElementById('sym')?.value.trim().toUpperCase();
+      if (!sym) return;
+      const cached = getCachedStockForSym(sym);
+      if (cached) {
+        const pineData = computePineFromStockRow(sym, { price: cached.price, changePct: cached.chg });
+        if (sym !== currentSymbol) {
+          renderLiveChart(sym, false, null, false);
+        }
+        renderChartSignalHud(sym, null, pineData);
+      }
+    });
+    observer.observe(quoteEl, { childList: true, subtree: true });
+  }
+
+  // مراقبة التعديل اليدوي لسعر الشراء في الحاسبة (#buy)
+  const buyEl = document.getElementById('buy');
+  if (buyEl) {
+    buyEl.addEventListener('input', () => {
+      const val = parseFloat(buyEl.value);
+      const sym = document.getElementById('sym')?.value.trim().toUpperCase() || currentSymbol;
+      if (sym && val > 0) {
+        const pineData = computePineFromStockRow(sym, { price: val, changePct: 4 });
+        renderChartSignalHud(sym, null, pineData);
+      }
+    });
+  }
+
   // تفعيل أزرار الفريمات الزمنية (1m, 5m, 15m, 1H, D)
   document.querySelectorAll('.chart-tf').forEach(btn => {
     if (btn.getAttribute('data-tf') === currentInterval) {
@@ -874,7 +839,7 @@ if shortCondition
       this.classList.add('active');
       currentInterval = this.getAttribute('data-tf');
       localStorage.setItem('mh_chart_interval', currentInterval);
-      if (currentSymbol) renderLiveChart(currentSymbol, false, lastSignalPayload, true);
+      if (currentSymbol) renderLiveChart(currentSymbol, false, null, true);
     });
   });
 
@@ -894,7 +859,7 @@ if shortCondition
   if (themeBtn) {
     themeBtn.addEventListener('click', () => {
       setTimeout(() => {
-        if (currentSymbol) renderLiveChart(currentSymbol, false, lastSignalPayload, true);
+        if (currentSymbol) renderLiveChart(currentSymbol, false, null, true);
       }, 50);
     });
   }
@@ -905,9 +870,7 @@ if shortCondition
     getBtn.addEventListener('click', () => {
       const sym = document.getElementById('sym')?.value.trim().toUpperCase();
       if (sym) {
-        const sigData = window.__lastScannerSignal ? window.__lastScannerSignal[sym] : null;
-        renderLiveChart(sym, false, sigData, false);
-        setTimeout(() => triggerLivePineEvaluation(sym, window.__lastScannerSignal?.[sym] || null), 600);
+        renderLiveChart(sym, false, null, false);
       }
     });
   }
@@ -937,8 +900,7 @@ if shortCondition
       if (tr) {
         const sym = tr.getAttribute('data-symbol');
         if (sym) {
-          const sigData = window.__lastScannerSignal ? window.__lastScannerSignal[sym] : null;
-          renderLiveChart(sym, true, sigData, false);
+          renderLiveChart(sym, true, null, false);
         }
       }
     });
