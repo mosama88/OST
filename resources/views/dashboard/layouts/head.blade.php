@@ -1,6 +1,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <link href="assets/img/logo.ico" rel="icon" type="image/x-icon" />
+  <link href="{{asset('dash-users')}}/assets/img/logo.ico" rel="icon" type="image/x-icon" />
   <title>مواعيد البورصات + حاسبة الأرباح + ماسح الأسهم الفوري</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

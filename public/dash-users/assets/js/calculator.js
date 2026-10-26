@@ -1,5 +1,5 @@
 /* ============================================================
-   PROFIT CALCULATOR & STOCK CACHE
+   PROFIT CALCULATOR, SECTOR CLASSIFIER & SHARIA SCREENING
 ============================================================ */
 const CACHE_SYM_KEY = 'mh_cached_symbol';
 const CACHE_QUOTE_KEY = 'mh_cached_quote_data';
@@ -18,40 +18,210 @@ const fBig = n => {
 };
 const sg = (x, d = 2) => (x > 0 ? '+' : '') + fNum(x, d);
 
+/* ============================================================
+   1. قاموس ترجمة وتصنيف القطاعات + الفحص الشرعي للأسهم
+============================================================ */
+const KNOWN_TICKERS_META = {
+  AAPL: { sectorAr: 'تكنولوجيا وأجهزة ذكية', sharia: 'halal', reason: 'النشاط مباح ونسبة الديون للقيمة السوقية أقل من 30%' },
+  MSFT: { sectorAr: 'تكنولوجيا وبرمجيات', sharia: 'halal', reason: 'النشاط مباح ونسبة الديون منخفضة' },
+  NVDA: { sectorAr: 'تكنولوجيا وأشباه موصلات', sharia: 'halal', reason: 'النشاط مباح ونسبة الديون أقل من 30%' },
+  AMD:  { sectorAr: 'تكنولوجيا وأشباه موصلات', sharia: 'halal', reason: 'النشاط مباح ونسبة الديون منخفضة' },
+  TSLA: { sectorAr: 'سيارات كهربائية وتكنولوجيا', sharia: 'halal', reason: 'النشاط مباح ونسبة الديون منخفضة' },
+  AMZN: { sectorAr: 'تجارة إلكترونية وحوسبة سحابية', sharia: 'doubtful', reason: 'النشاط الأساسي مباح مع وجود إيرادات فرعية مختلطة تحتاج تطهير' },
+  GOOGL:{ sectorAr: 'تكنولوجيا وخدمات إنترنت', sharia: 'doubtful', reason: 'النشاط التقني مباح مع وجود إيرادات إعلانية مختلطة' },
+  GOOG: { sectorAr: 'تكنولوجيا وخدمات إنترنت', sharia: 'doubtful', reason: 'النشاط التقني مباح مع وجود إيرادات إعلانية مختلطة' },
+  META: { sectorAr: 'تكنولوجيا ووسائل تواصل', sharia: 'doubtful', reason: 'إيرادات الإعلانات مختلطة وتحتاج مراجعة وتطهير' },
+  NFLX: { sectorAr: 'ترفيه وبث مرئي', sharia: 'haram', reason: 'النشاط الأساسي يعتمد على محتوى ترفيهي غير متوافق شرعاً' },
+  DIS:  { sectorAr: 'ترفيه وإعلام', sharia: 'haram', reason: 'النشاط الأساسي في السينما والترفيه غير المتوافق شرعاً' },
+  JPM:  { sectorAr: 'بنوك وخدمات مالية', sharia: 'haram', reason: 'بنك تقليدي يعتمد على الفوائد الربوية' },
+  BAC:  { sectorAr: 'بنوك وخدمات مالية', sharia: 'haram', reason: 'بنك تقليدي يعتمد على الفوائد الربوية' },
+  WFC:  { sectorAr: 'بنوك وخدمات مالية', sharia: 'haram', reason: 'بنك تقليدي يعتمد على الفوائد الربوية' },
+  C:    { sectorAr: 'بنوك وخدمات مالية', sharia: 'haram', reason: 'بنك تقليدي يعتمد على الفوائد الربوية' },
+  GS:   { sectorAr: 'بنوك واستثمار مالي', sharia: 'haram', reason: 'مؤسسة مالية تقليدية تعتمد على الفوائد' },
+  PFE:  { sectorAr: 'أدوية ورعاية صحية', sharia: 'halal', reason: 'قطاع الأدوية والرعاية الصحية مباح شرعاً' },
+  MRNA: { sectorAr: 'أدوية وتكنولوجيا حيوية', sharia: 'halal', reason: 'قطاع الأدوية والتكنولوجيا الحيوية مباح شرعاً' },
+  JNJ:  { sectorAr: 'أدوية ومستلزمات طبية', sharia: 'halal', reason: 'قطاع الأدوية والمستلزمات الطبية مباح شرعاً' },
+  LLY:  { sectorAr: 'أدوية ورعاية صحية', sharia: 'halal', reason: 'قطاع الأدوية والرعاية الصحية مباح شرعاً' },
+  ABBV: { sectorAr: 'أدوية وتكنولوجيا حيوية', sharia: 'halal', reason: 'قطاع الأدوية والتكنولوجيا الحيوية مباح' },
+  XOM:  { sectorAr: 'طاقة ونفط وغاز', sharia: 'halal', reason: 'قطاع الطاقة والنفط مباح ونسبة الديون مقبولة' },
+  CVX:  { sectorAr: 'طاقة ونفط وغاز', sharia: 'halal', reason: 'قطاع الطاقة والنفط مباح ونسبة الديون مقبولة' }
+};
+
+// ترجمة وتصنيف القطاع إلى العربية
+function translateSectorToArabic(rawSector, rawIndustry, companyName, sym) {
+  const cleanSym = String(sym || '').toUpperCase();
+  if (KNOWN_TICKERS_META[cleanSym] && KNOWN_TICKERS_META[cleanSym].sectorAr) {
+    return KNOWN_TICKERS_META[cleanSym].sectorAr;
+  }
+
+  const text = `${rawSector || ''} ${rawIndustry || ''} ${companyName || ''}`.toLowerCase();
+  if (!text.trim()) return 'غير محدد';
+
+  if (/pharma|biotech|drug|therapeutics|medical|health|hospital|clinic|diagnostics|bioscience|life science|oncology|gene|vaccine/.test(text)) {
+    return 'أدوية ورعاية صحية';
+  }
+  if (/semiconductor|chip|software|cloud|cyber|tech|computer|electronic|artificial intelligence|information technology|internet|saas|data|digital/.test(text)) {
+    return 'تكنولوجيا وبرمجيات';
+  }
+  if (/bank|financial|finance|lending|credit|mortgage|insurance|reinsurance|capital market|brokerage|investment/.test(text)) {
+    return 'بنوك وخدمات مالية';
+  }
+  if (/oil|gas|petroleum|energy|solar|wind|renewable|drilling|pipeline|fuel/.test(text)) {
+    return 'طاقة ونفط';
+  }
+  if (/auto|vehicle|car|ev |motor|truck|aviation|aerospace|airline|shipping|transport|logistics|freight|marine/.test(text)) {
+    return 'سيارات ونقل ولوجستيات';
+  }
+  if (/retail|e-commerce|store|supermarket|consumer|apparel|fashion|footwear|food|beverage|restaurant|household/.test(text)) {
+    return 'تجزئة وسلع استهلاكية';
+  }
+  if (/mining|gold|silver|copper|steel|aluminum|chemical|materials|metal|lithium/.test(text)) {
+    return 'تعدين ومواد أساسية';
+  }
+  if (/real estate|reit|property|construction|building|housing/.test(text)) {
+    return 'عقارات وإنشاءات';
+  }
+  if (/telecom|wireless|5g|communication|media|entertainment|gaming|broadcast/.test(text)) {
+    return 'اتصالات وإعلام';
+  }
+  if (/industrial|machinery|manufacturing|engineering|defense|robotics|equipment/.test(text)) {
+    return 'صناعات ومعدات';
+  }
+  if (/utility|utilities|electric|water|power/.test(text)) {
+    return 'مرافق وخدمات عامة';
+  }
+
+  return rawSector || rawIndustry || 'شركات عامة';
+}
+
+// الفحص الشرعي للسهم حسب النشاط والنسب المالية (معيار AAOIFI: الديون < 33% من القيمة السوقية)
+function evaluateShariaCompliance(data) {
+  const cleanSym = String(data.sym || '').toUpperCase();
+  const combinedText = `${data.activity || ''} ${data.industry || ''} ${data.name || ''}`.toLowerCase();
+
+  // 1. فحص القائمة المعرفة مسبقاً للأسهم الكبرى
+  if (KNOWN_TICKERS_META[cleanSym]) {
+    const preset = KNOWN_TICKERS_META[cleanSym];
+    if (preset.sharia === 'halal') {
+      return { status: 'halal', label: '✅ حلال (متوافق شرعاً)', badgeClass: 'bg-success text-white', reason: preset.reason };
+    }
+    if (preset.sharia === 'haram') {
+      return { status: 'haram', label: '🚫 حرام (غير متوافق)', badgeClass: 'bg-danger text-white', reason: preset.reason };
+    }
+    return { status: 'doubtful', label: '⚠️ مختلط (يحتاج تطهير)', badgeClass: 'bg-warning text-dark', reason: preset.reason };
+  }
+
+  // 2. فحص الأنشطة المحرمة قطعيًا في الشريعة الإسلامية
+  const haramPatterns = [
+    { rx: /bank|bancorp|lending|mortgage|credit services|thrift|interest|loan|saving/i, reason: 'نشاط بنكي أو تمويلي ربوي' },
+    { rx: /insurance|reinsurance|life insurance|underwriting/i, reason: 'نشاط تأمين تجاري تقليدي غير متوافق شرعاً' },
+    { rx: /casino|gambling|betting|lottery|wagering|resort & casino/i, reason: 'نشاط قمار ومراهنات' },
+    { rx: /alcohol|brewery|brewing|distiller|winery|wine|liquor|spirits|beer/i, reason: 'إنتاج أو بيع المشروبات الكحولية' },
+    { rx: /tobacco|cigarette|cigar|vape|nicotine/i, reason: 'صناعة التبغ والسجائر' },
+    { rx: /pork|swine|bacon/i, reason: 'منتجات لحم الخنزير' },
+    { rx: /adult entertainment|nightclub/i, reason: 'ترفيه غير متوافق مع الشريعة' },
+    { rx: /weapons|ammunition|firearms/i, reason: 'صناعة أسلحة هجومية' }
+  ];
+
+  for (const item of haramPatterns) {
+    if (item.rx.test(combinedText)) {
+      return {
+        status: 'haram',
+        label: '🚫 حرام (نشاط محرم)',
+        badgeClass: 'bg-danger text-white',
+        reason: item.reason
+      };
+    }
+  }
+
+  // 3. فحص الأنشطة المختلطة (سينما، فنادق، إعلام ترفيهي، دفاع)
+  const doubtfulPatterns = [
+    { rx: /hotel|resort|cruise|hospitality/i, reason: 'قطاع فنادق ومنتجعات قد يتضمن إيرادات غير متوافقة' },
+    { rx: /movie|cinema|broadcasting|music|streaming|entertainment/i, reason: 'نشاط إعلامي وترفيهي مختلط يحتاج مراجعة القوائم المالية' },
+    { rx: /financial|capital|asset management|brokerage|exchange/i, reason: 'خدمات مالية تحتاج التحقق من خلوها من الفوائد الربوية' }
+  ];
+
+  for (const item of doubtfulPatterns) {
+    if (item.rx.test(combinedText)) {
+      return {
+        status: 'doubtful',
+        label: '⚠️ مشبوه / مختلط',
+        badgeClass: 'bg-warning text-dark',
+        reason: item.reason
+      };
+    }
+  }
+
+  // 4. فحص نسبة الديون إلى القيمة السوقية (إذا توفرت من الـ Scanner)
+  if (isFinite(data.totalDebt) && isFinite(data.mc) && data.mc > 0) {
+    const debtRatio = (data.totalDebt / data.mc) * 100;
+    if (debtRatio > 33) {
+      return {
+        status: 'haram',
+        label: `🚫 غير متوافق (الديون ${debtRatio.toFixed(0)}%)`,
+        badgeClass: 'bg-danger text-white',
+        reason: `النشاط مباح لكن نسبة الديون للقيمة السوقية (${debtRatio.toFixed(1)}%) تتجاوز الحد الشرعي (33%)`
+      };
+    }
+    if (debtRatio > 28) {
+      return {
+        status: 'doubtful',
+        label: `⚠️ مختلط (ديون ${debtRatio.toFixed(0)}%)`,
+        badgeClass: 'bg-warning text-dark',
+        reason: `نسبة الديون (${debtRatio.toFixed(1)}%) قريبة من الحد الشرعي الأقصى (33%)`
+      };
+    }
+  }
+
+  // 5. إذا كان النشاط في قطاع مباح (تكنولوجيا، أدوية، صناعة، طاقة، تجارة، إلخ)
+  if (combinedText.trim().length > 0 && data.sectorAr !== 'غير محدد') {
+    return {
+      status: 'halal',
+      label: '✅ حلال (النشاط مباح)',
+      badgeClass: 'bg-success text-white',
+      reason: 'نشاط الشركة الأساسي مباح شرعاً (يُنصح دائماً بمراجعة نسبة الديون الربع سنوية)'
+    };
+  }
+
+  return {
+    status: 'unknown',
+    label: '❓ غير مؤكد (راجع القوائم)',
+    badgeClass: 'bg-secondary text-white',
+    reason: 'لم تتوفر بيانات كافية عن نشاط الشركة الفرعي'
+  };
+}
+
+/* ============================================================
+   2. حاسبة الأرباح والعمولات
+============================================================ */
 function calc() {
   const msg = $('msg'), res = $('res'), sc = $('scen');
   msg.textContent = ''; res.innerHTML = ''; sc.hidden = true;
-  
-  // تم إلغاء قراءة frac لأننا سنجبر العدد على أن يكون صحيحاً
+
   const p = numVal('buy'), s = numVal('sell'), fb = numVal('fbf') || 0, pb = numVal('fbp') || 0, fs = numVal('fsf') || 0, ps = numVal('fsp') || 0;
-  
+
   if (!(p > 0)) { msg.textContent = 'اكتب سعر الشراء أو اضغط على سهم من الاسكانر.'; return }
-  
-  // حساب عدد الأسهم
+
   let sh = $('mode').value === 'budget' ? (numVal('budget') - fb) / (p * (1 + pb / 100)) : numVal('shares');
   if (!isFinite(sh)) sh = 0;
-  
-  // إجبار العدد على أن يكون صحيحاً دائماً
   sh = Math.floor(sh);
-  
+
   if (!(sh > 0)) { msg.textContent = 'المبلغ غير كافٍ لشراء سهم واحد بعد العمولة.'; return }
-  
+
   const val = sh * p, cb = fb + val * pb / 100, inn = val + cb;
   const out = (sp) => { const rev = sh * sp, cs = fs + rev * ps / 100, net = rev - cs - inn; return { rev, cs, net, pct: net / inn * 100 } };
   const be = (inn + fs) / (sh * (1 - ps / 100));
   const dec = p < 1 ? 4 : 2;
 
-  // تعديل دالة box لتقبل كلاس خلفية إضافي
   const box = (l, v, c, bgClass = '') => `<div class="col-6 col-md-4 col-lg-3"><div class="p-2 rounded ${bgClass || 'bg-body-tertiary'} border h-100"><small class="text-body-secondary d-block">${l}</small><b class="fs-6 ${c || ''}" dir="ltr">${v}</b></div></div>`;
-  
-  // تم إضافة خلفية success لخانة عدد الأسهم فقط
+
   let h = box('عدد الأسهم', fNum(sh, 0), '', 'bg-success text-white')
     + box('قيمة الشراء', '$' + fNum(val, 2))
     + box('إجمالي التكلفة بالعمولة', '$' + fNum(inn, 2))
     + box('سعر التعادل (Break-even)', '$' + fNum(be, 4));
-    
+
   if ($('mode').value === 'budget') h += box('المتبقي من المبلغ', '$' + fNum(numVal('budget') - inn, 2));
-  
+
   if (s > 0) {
     const r = out(s);
     h += box('إجمالي البيع', '$' + fNum(r.rev, 2))
@@ -109,17 +279,28 @@ function renderQuoteCard(data) {
   const priceDec = data.price < 1 ? 4 : 2;
   const pcDec = (data.pc && data.pc < 1) ? 4 : 2;
 
+  // استخراج التصنيف العربي والحكم الشرعي
+  const sectorAr = translateSectorToArabic(data.activity, data.industry, data.name, data.sym);
+  data.sectorAr = sectorAr;
+  const sharia = evaluateShariaCompliance(data);
+
   q.innerHTML = `
     <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-2 mb-2 gap-2">
-      <div>
-        <span class="h5 fw-bold text-primary mb-0 me-2">${data.sym}</span>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <span class="h5 fw-bold text-primary mb-0">${data.sym}</span>
         <span class="fw-semibold">${data.name || ''}</span>
-        <span class="badge bg-info text-dark ms-2">🏢 النشاط: ${data.activity || 'غير محدد'}</span>
+        <span class="badge bg-info text-dark" title="${data.activity || ''}">🏢 التصنيف: ${sectorAr}</span>
+        <span class="badge ${sharia.badgeClass}" title="${sharia.reason}" style="cursor:help;">
+          ⚖️ الشرعية: ${sharia.label}
+        </span>
       </div>
       <div class="fs-5 fw-bold" dir="ltr">
         $${fNum(data.price, priceDec)}
         ${data.chg != null ? `<span class="ms-2 fs-6 ${chgCls}">(${sg(data.chg, 2)}%)</span>` : ''}
       </div>
+    </div>
+    <div class="small text-body-secondary mb-2">
+      <small>📌 <b>تفاصيل الحكم الشرعي:</b> ${sharia.reason}</small>
     </div>
     <div class="row g-2 small">
       <div class="col-6 col-sm-4 col-md-2"><span class="text-body-secondary d-block">إغلاق أمس (Prev Close):</span><b dir="ltr">${data.pc != null ? '$' + fNum(data.pc, pcDec) : '—'}</b></div>
@@ -165,13 +346,15 @@ async function fetchFullStockData(sym) {
     sym: sym,
     price: price,
     name: quoteJson ? dig(quoteJson, ['shortName', 'longName', 'name', 'companyName', 'description'], true) : null,
-    activity: quoteJson ? dig(quoteJson, ['sector', 'industry', 'category', 'sectorDisp', 'industryDisp', 'finnhubIndustry', 'sic_description'], true) : null,
+    activity: quoteJson ? dig(quoteJson, ['sector', 'category', 'sectorDisp', 'finnhubIndustry', 'sic_description'], true) : null,
+    industry: quoteJson ? dig(quoteJson, ['industry', 'industryDisp', 'subIndustry'], true) : null,
     pc: quoteJson ? dig(quoteJson, ['previousClose', 'regularMarketPreviousClose', 'pc', 'prevClose', 'prev_close']) : null,
     chg: quoteJson ? dig(quoteJson, ['changePercent', 'regularMarketChangePercent', 'dp', 'change_percent', 'changePct']) : null,
     vol: quoteJson ? dig(quoteJson, ['volume', 'regularMarketVolume', 'v', 'vol']) : null,
     floatShares: quoteJson ? dig(quoteJson, ['floatShares', 'float_shares', 'freeFloat', 'sharesFloat', 'float', 'shares_float']) : null,
     floatPct: quoteJson ? dig(quoteJson, ['floatPct', 'float_pct']) : null,
     mc: quoteJson ? dig(quoteJson, ['marketCap', 'market_cap', 'market_cap_basic']) : null,
+    totalDebt: quoteJson ? dig(quoteJson, ['totalDebt', 'total_debt']) : null,
     bid: quoteJson ? dig(quoteJson, ['bid', 'bidPrice']) : null,
     ask: quoteJson ? dig(quoteJson, ['ask', 'askPrice']) : null
   };
@@ -183,23 +366,26 @@ async function fetchFullStockData(sym) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filters: [{ left: 'name', operation: 'equal', right: sym }],
+          columns: ['name', 'description', 'close', 'change', 'volume', 'market_cap_basic', 'float_shares_outstanding', 'sector', 'industry', 'total_debt'],
           range: [0, 5]
         })
       });
       if (scanRes.ok) {
         const sj = await scanRes.json();
-        const row = (sj.data || []).find(item => String(item.symbol).toUpperCase() === sym);
+        const row = (sj.data || []).find(item => String(item.symbol || item.s || '').toUpperCase().endsWith(sym));
         if (row) {
-          if (data.price == null) data.price = row.price;
-          if (!data.name) data.name = row.name;
-          if (!data.activity) data.activity = row.sector || row.industry || row.description || null;
+          if (data.price == null) data.price = row.price ?? row.close;
+          if (!data.name) data.name = row.description || row.name;
+          if (!data.activity) data.activity = row.sector || row.industry || null;
+          if (!data.industry) data.industry = row.industry || null;
           if (data.vol == null) data.vol = row.volume;
-          if (data.chg == null) data.chg = row.changePct;
-          if (data.floatShares == null) data.floatShares = row.floatShares;
+          if (data.chg == null) data.chg = row.changePct ?? row.change;
+          if (data.floatShares == null) data.floatShares = row.floatShares ?? row.float_shares_outstanding;
           if (data.floatPct == null) data.floatPct = row.floatPct;
-          if (data.mc == null) data.mc = row.marketCap;
-          if (data.pc == null && row.price != null && row.changePct != null) {
-            data.pc = row.price / (1 + (row.changePct / 100));
+          if (data.mc == null) data.mc = row.marketCap ?? row.market_cap_basic;
+          if (data.totalDebt == null) data.totalDebt = row.totalDebt ?? row.total_debt;
+          if (data.pc == null && data.price != null && data.chg != null) {
+            data.pc = data.price / (1 + (data.chg / 100));
           }
         }
       }
