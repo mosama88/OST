@@ -47,6 +47,114 @@
         </div>
     </section>
 
+
+    <!-- PRO WATCHLIST & PRICE ALERTS SECTION -->
+    <section class="card shadow-sm mb-3 border-warning border-opacity-50" id="watchlistSection">
+        <div class="card-header bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h5 fw-bold mb-0">⭐ رادار المتابعة الذكي (Pro Watchlist)</h2>
+                <span class="badge bg-warning text-dark fw-bold" id="wlCountBadge">0 أسهم</span>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="wlAutoRefresh" checked />
+                    <label class="form-check-label small" for="wlAutoRefresh">تحديث حي (10ث)</label>
+                </div>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="wlAlertSound" checked />
+                    <label class="form-check-label small" for="wlAlertSound">🔔 جرس اختراق السعر</label>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-warning fw-semibold" id="wlRefreshBtn">
+                    🔄 تحديث الأسعار الآن
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <!-- شريط الإضافة السريعة + المنبه السعري + القوائم الجاهزة -->
+            <div class="row g-2 align-items-end mb-3 pb-3 border-bottom">
+                <div class="col-6 col-sm-4 col-md-2">
+                    <label class="form-label small text-body-secondary mb-1">رمز السهم (Ticker)</label>
+                    <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="wlSymInput"
+                        placeholder="مثال: NVDA" dir="ltr"
+                        oninput="this.value = this.value.replace(/[^a-zA-Z0-9.]/g, '')" />
+                </div>
+                <div class="col-6 col-sm-4 col-md-2">
+                    <label class="form-label small text-body-secondary mb-1">🔔 منبه عند سعر (\$)</label>
+                    <input type="number" class="form-control form-control-sm" id="wlTargetInput"
+                        placeholder="اختياري (مثلاً 150)" step="any" min="0" dir="ltr" />
+                </div>
+                <div class="col-12 col-sm-4 col-md-3">
+                    <label class="form-label small text-body-secondary mb-1">📝 ملاحظة / خطة التداول</label>
+                    <input type="text" class="form-control form-control-sm" id="wlNoteInput"
+                        placeholder="مثال: دخول بعد اختراق القمة..." />
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-sm btn-warning fw-bold px-3" id="wlAddBtn">
+                        ➕ أضف للرادار
+                    </button>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-sm btn-outline-info fw-semibold" id="wlAddCurrentBtn"
+                        title="إضافة السهم الموجود حالياً في الحاسبة">
+                        📌 أضف سهم الحاسبة الحالي
+                    </button>
+                </div>
+
+                <!-- قوائم جاهزة سريعة -->
+                <div class="col-12 col-md-auto ms-md-auto d-flex flex-wrap align-items-center gap-1 mt-2 mt-md-0">
+                    <span class="small text-body-secondary me-1">قوائم جاهزة:</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary wl-preset"
+                        data-tickers="NVDA,AAPL,MSFT,AMD,TSLA,PLTR">
+                        🚀 عمالقة التكنولوجيا
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success wl-preset"
+                        data-tickers="LLY,NVO,PFE,MRNA,ABBV,VRTX">
+                        💊 الأدوية والبيوتك
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="wlClearAllBtn"
+                        title="مسح القائمة بالكامل">
+                        🗑️ مسح الكل
+                    </button>
+                </div>
+            </div>
+
+            <!-- شريط الفلترة والترتيب -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div class="btn-group btn-group-sm" role="group" aria-label="فلترة المفضلة">
+                    <button type="button" class="btn btn-outline-secondary active wl-filter" data-filter="all">
+                        الكل
+                    </button>
+                    <button type="button" class="btn btn-outline-success wl-filter" data-filter="halal">
+                        ✅ الحلال فقط
+                    </button>
+                    <button type="button" class="btn btn-outline-info wl-filter" data-filter="gainers">
+                        🟢 الصاعدة اليوم
+                    </button>
+                    <button type="button" class="btn btn-outline-warning wl-filter" data-filter="alerts">
+                        🔔 بها منبه سعري
+                    </button>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 small">
+                    <span class="text-body-secondary">ترتيب حسب:</span>
+                    <select class="form-select form-select-sm w-auto" id="wlSortSelect">
+                        <option value="added">الأحدث إضافة</option>
+                        <option value="changeDesc">الأعلى صعوداً (%)</option>
+                        <option value="changeAsc">الأكثر هبوطاً (%)</option>
+                        <option value="volDesc">الأعلى سيولة (Volume)</option>
+                        <option value="symAsc">الأبجدية (A-Z)</option>
+                    </select>
+                    <span class="text-body-secondary ms-2">آخر تحديث: <b id="wlLastUpdate"
+                            dir="ltr">--:--:--</b></span>
+                </div>
+            </div>
+
+            <!-- شبكة بطاقات الأسهم (Cards Grid) -->
+            <div id="wlGrid" class="row g-2"></div>
+        </div>
+    </section>
+
     <!-- LIVE INTERACTIVE CHART SECTION -->
     <section class="card shadow-sm mb-3 border-info border-opacity-50" id="chartSection" hidden>
         <div class="card-header bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -73,7 +181,8 @@
                         1D
                     </button>
                 </div>
-                <a href="#" id="tvExternalLink" target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">🔗
+                <a href="#" id="tvExternalLink" target="_blank" rel="noopener"
+                    class="btn btn-sm btn-outline-info">🔗
                     فتح في
                     TradingView</a>
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleChartBtn">
