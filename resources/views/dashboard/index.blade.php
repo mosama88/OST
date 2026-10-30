@@ -341,14 +341,14 @@
     </section>
 
     <!-- PRO GLOBAL SCANNER ($0.01 to $25) -->
+    <!-- PRO GLOBAL SCANNER (Advanced Search & Clean UI) -->
     <section class="card shadow-sm mb-3 border-success border-opacity-50" id="scannerSection">
         <div class="card-header bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div>
                 <h2 class="h5 fw-bold mb-0">
-                    📡 اسكانر الأسهم الفوري — لوحات متعددة (من $0.01 إلى $25)
+                    📡 رادار الأسهم الذكي (Advanced Scanner)
                 </h2>
-                <small class="text-body-secondary">19 لوحة تتحدّث معاً — اضغط على أي سهم لفتح الشارت الفوري وإرساله
-                    إلى الحاسبة</small>
+                <small class="text-body-secondary">ابحث عن أفضل الفرص بناءً على السعر، السيولة، الـ Float، والبلد</small>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-3">
                 <div class="form-check form-switch mb-0">
@@ -363,157 +363,151 @@
         </div>
 
         <div class="card-body">
-            <!-- Quick Price Presets -->
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3 pb-2 border-bottom">
-                <span class="small text-body-secondary fw-semibold">فلاتر سريعة للسعر:</span>
-                <button type="button" class="btn btn-sm btn-outline-primary preset-price" data-min="0.01"
-                    data-max="25">
-                    🎯 سنتات إلى $25 (الافتراضي)
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-warning preset-price" data-min="0.01"
-                    data-max="1">
-                    🪙 أسهم السنتات (أقل من $1)
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-info preset-price" data-min="1" data-max="5">
-                    🔥 من $1 إلى $5
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-success preset-price" data-min="5"
-                    data-max="25">
-                    💎 من $5 إلى $25
-                </button>
+            <!-- Advanced Search Form -->
+            <div class="bg-body-tertiary p-3 rounded-3 mb-4 border">
+                <div class="row g-3 align-items-end">
+                    <!-- 1. Price Range -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label small text-body-secondary mb-1 fw-bold">💰 نطاق السعر ($)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="filterPriceMin" placeholder="من"
+                                value="0.01" step="0.01" dir="ltr" />
+                            <span class="input-group-text">-</span>
+                            <input type="number" class="form-control" id="filterPriceMax" placeholder="إلى"
+                                value="25" step="0.5" dir="ltr" />
+                        </div>
+                    </div>
+
+                    <!-- 2. Volume Range -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label small text-body-secondary mb-1 fw-bold">📊 نطاق الفوليوم (Volume)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="filterVolumeMin" placeholder="من"
+                                value="100000" step="50000" dir="ltr" />
+                            <span class="input-group-text">-</span>
+                            <input type="number" class="form-control" id="filterVolumeMax" placeholder="إلى"
+                                step="100000" dir="ltr" />
+                        </div>
+                    </div>
+
+                    <!-- 3. Free Float Range -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label small text-body-secondary mb-1 fw-bold">💎 نطاق الـ Free Float
+                            (أسهم)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="filterFloatMin" placeholder="من (مليون)"
+                                step="1000000" dir="ltr" />
+                            <span class="input-group-text">-</span>
+                            <input type="number" class="form-control" id="filterFloatMax" placeholder="إلى (مليون)"
+                                step="1000000" dir="ltr" />
+                        </div>
+                    </div>
+
+                    <!-- 4. Country & Exchange -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label small text-body-secondary mb-1 fw-bold">🌍 البلد / البورصة</label>
+                        <div class="input-group input-group-sm">
+                            <select class="form-select" id="filterCountry">
+                                <option value="all">كل البلدان</option>
+                                <option value="usa" selected>الولايات المتحدة (USA)</option>
+                                <option value="china">الصين (China)</option>
+                                <option value="saudi">السعودية (Saudi)</option>
+                                <option value="uk">بريطانيا (UK)</option>
+                                <option value="canada">كندا (Canada)</option>
+                            </select>
+                            <select class="form-select" id="filterMarket">
+                                <option value="all">كل البورصات</option>
+                                <option value="nasdaq">NASDAQ</option>
+                                <option value="nyse">NYSE</option>
+                                <option value="amex">AMEX</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Extras -->
+                <div class="row g-3 align-items-end mt-2 pt-2 border-top border-secondary border-opacity-25">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small text-body-secondary mb-1">أقل تغيّر (%)</label>
+                        <input type="number" class="form-control form-control-sm" id="filterChangeMin" value="2"
+                            step="0.5" dir="ltr" />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small text-body-secondary mb-1">أقل RVOL</label>
+                        <input type="number" class="form-control form-control-sm" id="filterRvolMin" value="1.2"
+                            step="0.1" dir="ltr" />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small text-body-secondary mb-1">فلتر القرار</label>
+                        <select class="form-select form-select-sm" id="filterVerdict">
+                            <option value="">الكل</option>
+                            <option value="enter">🚀 ادخل فوراً</option>
+                            <option value="watch">👀 مراقبة</option>
+                            <option value="danger">🛑 خطر</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small text-body-secondary mb-1">عدد الصفوف</label>
+                        <select class="form-select form-select-sm" id="filterLimit">
+                            <option value="50" selected>50 سهم</option>
+                            <option value="100">100 سهم</option>
+                            <option value="200">200 سهم</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-secondary fw-semibold" id="scannerReset">
+                            🔄 استعادة الافتراضي
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm fw-bold px-4" id="scannerBtn">
+                            🚀 ابحث الآن
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Filter Controls -->
-            <div class="row g-2 mb-3">
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">أقل سعر ($)</label>
-                    <input type="number" class="form-control form-control-sm" id="filterPriceMin" value="0.01"
-                        step="0.01" min="0" dir="ltr" />
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">أعلى سعر ($)</label>
-                    <input type="number" class="form-control form-control-sm" id="filterPriceMax" value="25"
-                        step="0.5" min="0" dir="ltr" />
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">أقل فوليوم</label>
-                    <input type="number" class="form-control form-control-sm" id="filterVolumeMin" value="250000"
-                        step="50000" min="0" dir="ltr" />
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">أقل تغيّر (%) — للجدول</label>
-                    <input type="number" class="form-control form-control-sm" id="filterChangeMin" value="2"
-                        step="0.5" dir="ltr" />
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">أقل RVOL — للجدول</label>
-                    <input type="number" class="form-control form-control-sm" id="filterRvolMin" value="1.2"
-                        step="0.1" min="0" dir="ltr" />
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">أقل Market Cap</label>
-                    <input type="number" class="form-control form-control-sm" id="filterMarketCapMin" value="0"
-                        step="1000000" min="0" dir="ltr" />
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">البورصة</label>
-                    <select class="form-select form-select-sm" id="filterMarket">
-                        <option value="all">كل السوق الأمريكي</option>
-                        <option value="nasdaq">NASDAQ</option>
-                        <option value="nyse">NYSE</option>
-                        <option value="amex">AMEX</option>
-                    </select>
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">فلتر القرار — للجدول</label>
-                    <select class="form-select form-select-sm" id="filterVerdict">
-                        <option value="">كل الإشارات</option>
-                        <option value="enter">🚀 ادخل فوراً (ENTER)</option>
-                        <option value="watch">👀 مراقبة (WATCH)</option>
-                        <option value="wait">⏸️ انتظر (WAIT)</option>
-                        <option value="unstable">⚡ غير مستقر</option>
-                        <option value="danger">🛑 خطر</option>
-                    </select>
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">ترتيب الجدول</label>
-                    <select class="form-select form-select-sm" id="filterSort">
-                        <option value="momo">الأقوى زخماً (MOMO)</option>
-                        <option value="change">الأعلى صعوداً (%)</option>
-                        <option value="volume">الأعلى سيولة (Volume)</option>
-                        <option value="rvol">الأعلى RVOL</option>
-                        <option value="marketCap">القيمة السوقية</option>
-                    </select>
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">عدد صفوف الجدول</label>
-                    <select class="form-select form-select-sm" id="filterLimit">
-                        <option value="30">30 سهم</option>
-                        <option value="50" selected>50 سهم</option>
-                        <option value="100">100 سهم</option>
-                        <option value="150">150 سهم</option>
-                    </select>
-                </div>
-                <div class="col-6 col-sm-4 col-md-2">
-                    <label class="form-label small text-body-secondary mb-1">صفوف كل لوحة</label>
-                    <select class="form-select form-select-sm" id="filterPanelRows">
-                        <option value="5">5</option>
-                        <option value="8" selected>8</option>
-                        <option value="12">12</option>
-                        <option value="20">20</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Action Bar -->
+            <!-- View Toggle & Status -->
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                <div class="d-flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-success btn-sm fw-bold px-3" id="scannerBtn">
-                        🚀 امسح السوق الآن
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="scannerStop">
-                        ⏸️ إيقاف التلقائي
-                    </button>
-                    <button type="button" class="btn btn-outline-warning btn-sm" id="scannerReset">
-                        🔄 استعادة افتراضي (0.01$ - 25$)
-                    </button>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary active" id="btnViewTable"
+                        onclick="document.getElementById('scannerPanels').style.display='none'; document.getElementById('tableContainer').style.display='block'; this.classList.add('active'); document.getElementById('btnViewPanels').classList.remove('active');">📋
+                        عرض الجدول التفصيلي</button>
+                    <button type="button" class="btn btn-outline-primary" id="btnViewPanels"
+                        onclick="document.getElementById('scannerPanels').style.display='block'; document.getElementById('tableContainer').style.display='none'; this.classList.add('active'); document.getElementById('btnViewTable').classList.remove('active');">🧩
+                        عرض اللوحات (Momo)</button>
                 </div>
                 <div class="d-flex align-items-center gap-3 small">
-                    <span id="scannerStatus" class="fw-semibold">جاهز للمسح</span>
-                    <span class="text-body-secondary">العدد: <b id="scannerCount">0</b></span>
-                    <span class="text-body-secondary">آخر تحديث:
-                        <b id="scannerLastUpdate" dir="ltr">--:--:--</b></span>
+                    <span id="scannerStatus" class="fw-semibold text-success">جاهز للمسح</span>
+                    <span class="text-body-secondary">النتائج: <b id="scannerCount">0</b></span>
+                    <span class="text-body-secondary">آخر تحديث: <b id="scannerLastUpdate"
+                            dir="ltr">--:--:--</b></span>
                 </div>
             </div>
 
-            <!-- Momos-style panels -->
-            <div id="scannerPanels" class="sc-grid mb-3" dir="ltr"></div>
+            <!-- 1. Momo Panels (Hidden by Default) -->
+            <div id="scannerPanels" class="sc-grid mb-3" dir="ltr" style="display: none;"></div>
 
-            <!-- Detailed table -->
-            <h3 class="h6 fw-bold mb-2">📋 الجدول التفصيلي (القرار + الأهداف)</h3>
-            <div class="table-responsive" style="max-height: 560px">
-                <table class="table table-sm table-hover table-striped align-middle scanner-table mb-0">
-                    <thead class="sticky-top bg-body-tertiary">
+            <!-- 2. Detailed Table View -->
+            <div id="tableContainer" class="table-responsive" style="max-height: 650px;">
+                <table class="table table-sm table-hover table-striped align-middle mb-0 scanner-table text-center">
+                    <thead class="sticky-top bg-body-tertiary shadow-sm" style="z-index: 10;">
                         <tr>
-                            <th>السهم / النشاط</th>
-                            <th>السعر</th>
-                            <th>التغيّر</th>
-                            <th>إغلاق أمس</th>
-                            <th>الفوليوم</th>
-                            <th>RelVol 10D</th>
+                            <th>السهم (Symbol)</th>
+                            <th>السعر (Price)</th>
+                            <th>التغيّر (%)</th>
+                            <th>الفوليوم (Volume)</th>
                             <th>RVOL</th>
                             <th>Free Float</th>
-                            <th>M.Cap</th>
-                            <th>52W%</th>
-                            <th>MOMO</th>
-                            <th>القرار والإشارات</th>
+                            <th>البلد / القطاع</th>
+                            <th>MOMO Score</th>
+                            <th>القرار (Verdict)</th>
                             <th>الأهداف (TP / SL)</th>
                         </tr>
                     </thead>
                     <tbody id="scannerRows">
                         <tr>
-                            <td colspan="13" class="text-center py-4 text-body-secondary">
-                                جاري تحميل الاسكانر...
+                            <td colspan="10" class="text-center py-5 text-body-secondary">
+                                <div class="spinner-border text-success mb-3" role="status"></div>
+                                <p class="mb-0">جاري مسح السوق وجلب أفضل الفرص...</p>
                             </td>
                         </tr>
                     </tbody>
