@@ -1,6 +1,6 @@
 /* ============================================================================
-   ULTRA MOMO PRO TERMINAL v7.1 (ADVANCED SEARCH & CLEAN UI)
-   يدعم البحث بنطاق السعر، الفوليوم، الـ Free Float، والبلد
+   ULTRA MOMO PRO TERMINAL v7.2 (ADVANCED SEARCH + SPEAKER TABLE + CLEAN UI)
+   يدعم البحث بنطاق السعر، الفوليوم، الـ Free Float، والبلد + جدول ناطق مستقل
 ============================================================================ */
 (function () {
   "use strict";
@@ -17,14 +17,14 @@
   var autoEl = document.getElementById('scannerAuto');
   var soundEl = document.getElementById('scannerSound');
 
-  // 1. جلب كل عناصر الفلاتر بما فيها الجديدة
+  // عناصر الفلاتر
   var fPriceMin = document.getElementById('filterPriceMin');
   var fPriceMax = document.getElementById('filterPriceMax');
   var fVolumeMin = document.getElementById('filterVolumeMin');
-  var fVolumeMax = document.getElementById('filterVolumeMax'); // جديد
-  var fFloatMin = document.getElementById('filterFloatMin');   // جديد
-  var fFloatMax = document.getElementById('filterFloatMax');   // جديد
-  var fCountry = document.getElementById('filterCountry');     // جديد
+  var fVolumeMax = document.getElementById('filterVolumeMax');
+  var fFloatMin = document.getElementById('filterFloatMin');
+  var fFloatMax = document.getElementById('filterFloatMax');
+  var fCountry = document.getElementById('filterCountry');
   var fCapMin = document.getElementById('filterMarketCapMin');
   var fChangeMin = document.getElementById('filterChangeMin');
   var fRvolMin = document.getElementById('filterRvolMin');
@@ -48,10 +48,7 @@
 
   function getEl(id) {
     if (typeof window.$ === 'function') {
-      try {
-        var el = window.$(id);
-        if (el) return el;
-      } catch (e) {}
+      try { var el = window.$(id); if (el) return el; } catch (e) {}
     }
     return document.getElementById(id);
   }
@@ -76,7 +73,7 @@
 
   function saveUiState() { lsSet(K_UI, JSON.stringify(uiState)); }
 
-  /* ---------------- 1. حقن التصميم الفائق ---------------- */
+  /* ---------------- 1. حقن التصميم ---------------- */
   function injectUltraStyles() {
     var old = document.getElementById('ultra-momo-styles');
     if (old) old.remove();
@@ -84,16 +81,7 @@
     var style = document.createElement('style');
     style.id = 'ultra-momo-styles';
     style.textContent = `
-      #scannerPanels {
-        display: block !important;
-        font-family: 'Inter', 'Segoe UI', 'JetBrains Mono', Roboto, sans-serif;
-        user-select: none;
-        background: #060911 !important;
-        border: 1px solid #1e293b;
-        border-radius: 12px;
-        padding: 10px;
-        box-shadow: 0 25px 60px rgba(0,0,0,0.85);
-      }
+      #scannerPanels { display: block !important; font-family: 'Inter', 'Segoe UI', Roboto, sans-serif; user-select: none; background: #060911 !important; border: 1px solid #1e293b; border-radius: 12px; padding: 10px; box-shadow: 0 25px 60px rgba(0,0,0,0.85); }
       .momo-cmd-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%); padding: 7px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #334155; color: #ffffff; font-size: 11.5px; }
       .momo-cmd-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
       .momo-btn { background: #1e293b; color: #f8fafc; border: 1px solid #475569; border-radius: 5px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s ease; }
@@ -102,12 +90,6 @@
       .momo-search { background: #090d16; border: 1px solid #475569; color: #ffffff !important; padding: 4px 10px; border-radius: 5px; font-size: 11.5px; font-weight: 700; width: 130px; text-transform: uppercase; }
       .momo-search::placeholder { color: #94a3b8; }
       .momo-search:focus { outline: none; border-color: #38bdf8; width: 165px; box-shadow: 0 0 8px rgba(56,189,248,0.3); }
-      .momo-hot-bar { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 6px 10px; background: #0b111e; border: 1px solid #1e293b; border-radius: 7px; margin-bottom: 10px; font-size: 11.5px; scrollbar-width: thin; }
-      .momo-hot-tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 5px; font-weight: 800; cursor: pointer; white-space: nowrap; background: #1e293b; color: #ffffff; border: 1px solid #475569; transition: transform 0.12s; }
-      .momo-hot-tag:hover { transform: translateY(-1px); border-color: #facc15; }
-      .momo-hot-tag.hot-fire { background: linear-gradient(135deg, #dc2626, #ea580c); color: #ffffff; border-color: #fde047; box-shadow: 0 2px 8px rgba(234,88,12,0.4); }
-      .momo-hot-tag.pinned { background: linear-gradient(135deg, #1d4ed8, #0284c7); color: #ffffff; border-color: #7dd3fc; }
-      .momo-hot-tag .cnt { background: rgba(0,0,0,0.5); color: #fde047; padding: 0 5px; border-radius: 3px; font-size: 10px; }
       .momo-grid-wrap { display: grid; grid-template-columns: repeat(var(--momo-cols, 6), minmax(200px, 1fr)); gap: 6px; }
       @media (max-width: 1650px) { .momo-grid-wrap { grid-template-columns: repeat(4, minmax(195px, 1fr)); } }
       @media (max-width: 1150px) { .momo-grid-wrap { grid-template-columns: repeat(2, minmax(185px, 1fr)); } }
@@ -146,12 +128,6 @@
       .sc-new { animation: momoFlash 1.5s ease-out; }
       .halt-badge { background: #dc2626; color: #ffffff !important; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 900; letter-spacing: 0.3px; animation: pulseHalt 1s infinite; }
       @keyframes pulseHalt { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
-      .momo-Squawk-bar { display: flex; align-items: center; gap: 10px; background: #050811; border: 1px solid #1e293b; border-radius: 6px; padding: 6px 12px; margin-top: 10px; color: #e2e8f0; font-size: 11.5px; overflow: hidden; }
-      .squawk-label { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; font-weight: 900; font-size: 10px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
-      .squawk-items { display: flex; align-items: center; gap: 16px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
-      .squawk-item { cursor: pointer; color: #f8fafc; font-weight: 600; }
-      .squawk-item:hover { color: #38bdf8; }
-      .squawk-item b { color: #fde047; font-weight: 900; }
       #momoHoverHud { position: fixed; z-index: 99999; pointer-events: none; background: rgba(10, 15, 28, 0.98); border: 1px solid #38bdf8; border-radius: 8px; padding: 10px 12px; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 12px; width: 285px; box-shadow: 0 18px 40px rgba(0,0,0,0.9); display: none; }
       .hud-hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 5px; margin-bottom: 6px; }
       .hud-sym { font-size: 15px; font-weight: 900; color: #38bdf8; }
@@ -164,7 +140,7 @@
   }
   injectUltraStyles();
 
-  /* ---------------- 2. حفظ واسترجاع الفلاتر الأساسية ---------------- */
+  /* ---------------- 2. حفظ واسترجاع الفلاتر ---------------- */
   var allFilterEls = [fPriceMin, fPriceMax, fVolumeMin, fVolumeMax, fFloatMin, fFloatMax, fCountry, fCapMin, fChangeMin, fRvolMin, fMarket, fLimit, fVerdict, fSort, fRows];
 
   function saveFilters() {
@@ -174,12 +150,9 @@
       volumeMin: fVolumeMin ? fVolumeMin.value : '', volumeMax: fVolumeMax ? fVolumeMax.value : '',
       floatMin: fFloatMin ? fFloatMin.value : '', floatMax: fFloatMax ? fFloatMax.value : '',
       country: fCountry ? fCountry.value : 'all',
-      capMin: fCapMin ? fCapMin.value : '',
-      changeMin: fChangeMin ? fChangeMin.value : '',
-      rvolMin: fRvolMin ? fRvolMin.value : '',
+      capMin: fCapMin ? fCapMin.value : '', changeMin: fChangeMin ? fChangeMin.value : '', rvolMin: fRvolMin ? fRvolMin.value : '',
       market: fMarket ? fMarket.value : 'all', limit: fLimit ? fLimit.value : '50',
-      verdict: fVerdict ? fVerdict.value : '', sort: fSort ? fSort.value : 'momo',
-      panelRows: fRows ? fRows.value : '8'
+      verdict: fVerdict ? fVerdict.value : '', sort: fSort ? fSort.value : 'momo', panelRows: fRows ? fRows.value : '8'
     }));
   }
 
@@ -215,250 +188,83 @@
     });
   });
 
-  /* ---------------- 3. دوال مساعدة (Helpers) ---------------- */
+  /* ---------------- 3. دوال مساعدة ---------------- */
   function isNum(n) { return n !== null && n !== undefined && n !== '' && Number.isFinite(Number(n)); }
   function num(v) { if (v === '' || v == null) return null; var n = Number(v); return Number.isFinite(n) ? n : null; }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
-  function fmt(n, d) {
-    if (!isNum(n)) return '—';
-    d = d == null ? 2 : d;
-    return Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-  }
-  function fmtBig(n) {
-    if (!isNum(n)) return '—';
-    n = Number(n);
-    var a = Math.abs(n);
-    if (a >= 1e12) return (n / 1e12).toFixed(2) + 'T';
-    if (a >= 1e9) return (n / 1e9).toFixed(2) + 'B';
-    if (a >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-    if (a >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-    return n.toFixed(0);
-  }
-  function setStatus(msg, cls) {
-    if (!statusEl) return;
-    statusEl.textContent = msg;
-    statusEl.className = 'fw-semibold ' + (cls || '');
-  }
-  function esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-  }
+  function fmt(n, d) { if (!isNum(n)) return '—'; d = d == null ? 2 : d; return Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function fmtBig(n) { if (!isNum(n)) return '—'; n = Number(n); var a = Math.abs(n); if (a >= 1e12) return (n / 1e12).toFixed(2) + 'T'; if (a >= 1e9) return (n / 1e9).toFixed(2) + 'B'; if (a >= 1e6) return (n / 1e6).toFixed(1) + 'M'; if (a >= 1e3) return (n / 1e3).toFixed(1) + 'K'; return n.toFixed(0); }
+  function setStatus(msg, cls) { if (!statusEl) return; statusEl.textContent = msg; statusEl.className = 'fw-semibold ' + (cls || ''); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
-  /* ---------------- 4. محرك حساب التسارع اللحظي والـ Delta ---------------- */
+  /* ---------------- 4. محرك حساب التسارع ---------------- */
   function enrichStockMetrics(s) {
-    var price = num(s.price) || 0;
-    var vol = num(s.volume) || 0;
-    var chg = num(s.changePct) || 0;
-    var prev = prevStockSnapshot[s.symbol];
-
-    if (prev) {
-      s._volDelta = Math.max(0, vol - prev.vol);
-      s._priceDelta = price - prev.price;
-      s._chgDelta = chg - prev.chg;
-    } else {
-      s._volDelta = 0;
-      s._priceDelta = 0;
-      s._chgDelta = 0;
-    }
-
+    var price = num(s.price) || 0; var vol = num(s.volume) || 0; var chg = num(s.changePct) || 0; var prev = prevStockSnapshot[s.symbol];
+    if (prev) { s._volDelta = Math.max(0, vol - prev.vol); s._priceDelta = price - prev.price; s._chgDelta = chg - prev.chg; }
+    else { s._volDelta = 0; s._priceDelta = 0; s._chgDelta = 0; }
     s._realSpread = false;
-    if (s.bid && s.ask && s.ask > s.bid) {
-      s._spread = s.ask - s.bid;
-      s._realSpread = true;
-    } else {
-      s._spread = price < 1 ? 0.005 : (vol > 2e6 ? 0.01 : (vol > 500000 ? 0.02 : 0.05));
-    }
-
+    if (s.bid && s.ask && s.ask > s.bid) { s._spread = s.ask - s.bid; s._realSpread = true; }
+    else { s._spread = price < 1 ? 0.005 : (vol > 2e6 ? 0.01 : (vol > 500000 ? 0.02 : 0.05)); }
     var rvol = (num(s.avgVolume3M) || 0) > 0 ? vol / num(s.avgVolume3M) : (num(s.relVol10D) || 0);
     s._isHaltCandidate = (Math.abs(chg) >= 35 && rvol >= 5) || (Math.abs(s._chgDelta) >= 4);
   }
 
-  /* ---------------- 5. محرك MOMO Score & Verdict Engine ---------------- */
-  function offHigh(s) {
-    var h = num(s.high), p = num(s.price);
-    if (h && p && h > 0) return Math.max(0, (h - p) / h * 100);
-    return null;
-  }
-
-  function isHealthy(s) {
-    var vw = num(s.vwapDiff);
-    if (vw != null && vw < 0) return false;
-    var oh = offHigh(s);
-    if (oh != null && oh > 8) return false;
-    var o = num(s.open), p = num(s.price);
-    if (o && p && p < o) return false;
-    return true;
-  }
+  /* ---------------- 5. محرك MOMO & Verdict ---------------- */
+  function offHigh(s) { var h = num(s.high), p = num(s.price); if (h && p && h > 0) return Math.max(0, (h - p) / h * 100); return null; }
+  function isHealthy(s) { var vw = num(s.vwapDiff); if (vw != null && vw < 0) return false; var oh = offHigh(s); if (oh != null && oh > 8) return false; var o = num(s.open), p = num(s.price); if (o && p && p < o) return false; return true; }
 
   function computeMomo(s) {
-    var chg = num(s.changePct) || 0;
-    var vol = num(s.volume) || 0;
-    var price = num(s.price) || 0;
-    var avg = num(s.avgVolume3M) || 0;
-    var rvol = avg > 0 ? vol / avg : (num(s.relVol10D) || 0);
-    var floatS = num(s.floatShares) || 0;
-    var w52 = num(s.week52Pos);
-    var vwapD = num(s.vwapDiff);
-    var oh = offHigh(s);
-    var o = num(s.open);
-
+    var chg = num(s.changePct) || 0; var vol = num(s.volume) || 0; var price = num(s.price) || 0; var avg = num(s.avgVolume3M) || 0;
+    var rvol = avg > 0 ? vol / avg : (num(s.relVol10D) || 0); var floatS = num(s.floatShares) || 0; var w52 = num(s.week52Pos); var vwapD = num(s.vwapDiff); var oh = offHigh(s); var o = num(s.open);
     var score = 40;
-
-    if (rvol >= 5) score += 22;
-    else if (rvol >= 3) score += 16;
-    else if (rvol >= 2) score += 10;
-    else if (rvol >= 1.5) score += 4;
-    else if (rvol < 1) score -= 15;
-
-    if (chg >= 5 && chg <= 18) score += 14;
-    else if (chg > 18 && chg <= 35) score += 10;
-    else if (chg > 35 && chg <= 55) score += 2;
-    else if (chg > 55) score -= 10;
-    else if (chg >= 2 && chg < 5) score += 4;
-    else if (chg < 0) score -= 20;
-
-    var ffM = floatS / 1e6;
-    if (ffM >= 5 && ffM <= 30) score += 8;
-    else if (ffM > 30 && ffM <= 60) score += 3;
-    else if (ffM > 120) score -= 10;
-
-    if (w52 != null) {
-      if (w52 >= 85) score += 6;
-      else if (w52 >= 65) score += 3;
-      else if (w52 <= 15) score -= 6;
-    }
-
-    if (vwapD != null) {
-      if (vwapD > 2) score += 10;
-      else if (vwapD > 0) score += 4;
-      else if (vwapD < -2) score -= 25;
-      else score -= 15;
-    }
-
-    if (oh != null) {
-      if (oh <= 3) score += 8;
-      else if (oh <= 8) score += 0;
-      else if (oh <= 15) score -= 10;
-      else score -= 22;
-    }
+    if (rvol >= 5) score += 22; else if (rvol >= 3) score += 16; else if (rvol >= 2) score += 10; else if (rvol >= 1.5) score += 4; else if (rvol < 1) score -= 15;
+    if (chg >= 5 && chg <= 18) score += 14; else if (chg > 18 && chg <= 35) score += 10; else if (chg > 35 && chg <= 55) score += 2; else if (chg > 55) score -= 10; else if (chg >= 2 && chg < 5) score += 4; else if (chg < 0) score -= 20;
+    var ffM = floatS / 1e6; if (ffM >= 5 && ffM <= 30) score += 8; else if (ffM > 30 && ffM <= 60) score += 3; else if (ffM > 120) score -= 10;
+    if (w52 != null) { if (w52 >= 85) score += 6; else if (w52 >= 65) score += 3; else if (w52 <= 15) score -= 6; }
+    if (vwapD != null) { if (vwapD > 2) score += 10; else if (vwapD > 0) score += 4; else if (vwapD < -2) score -= 25; else score -= 15; }
+    if (oh != null) { if (oh <= 3) score += 8; else if (oh <= 8) score += 0; else if (oh <= 15) score -= 10; else score -= 22; }
     if (o && price && price < o) score -= 12;
-
-    if (s._volDelta > 25000) {
-      if (s._priceDelta > 0) score += 5;
-      else if (s._priceDelta < 0) score -= 8;
-    }
-
-    if (vol > 0 && vol < 100000) score -= 15;
-    if (price > 0 && price < 1) score -= 10;
-
+    if (s._volDelta > 25000) { if (s._priceDelta > 0) score += 5; else if (s._priceDelta < 0) score -= 8; }
+    if (vol > 0 && vol < 100000) score -= 15; if (price > 0 && price < 1) score -= 10;
     return Math.max(0, Math.min(100, Math.round(score)));
   }
 
   function computeVerdict(s) {
     if (s._v) return s._v;
-    var price = num(s.price) || 0;
-    var chg = num(s.changePct) || 0;
-    var vol = num(s.volume) || 0;
-    var avg30 = num(s.avgVolume3M) || 0;
-    var rvol = avg30 > 0 ? vol / avg30 : (num(s.relVol10D) || 0);
-    var momo = computeMomo(s);
-    var floatS = num(s.floatShares) || 0;
-    var w52 = num(s.week52Pos);
-    var vwapD = num(s.vwapDiff);
-    var oh = offHigh(s);
-    var healthy = isHealthy(s);
+    var price = num(s.price) || 0; var chg = num(s.changePct) || 0; var vol = num(s.volume) || 0; var avg30 = num(s.avgVolume3M) || 0;
+    var rvol = avg30 > 0 ? vol / avg30 : (num(s.relVol10D) || 0); var momo = computeMomo(s); var floatS = num(s.floatShares) || 0;
+    var w52 = num(s.week52Pos); var vwapD = num(s.vwapDiff); var oh = offHigh(s); var healthy = isHealthy(s);
+    var type = 'wait'; var signals = []; var risks = [];
 
-    var type = 'wait';
-    var signals = [];
-    var risks = [];
-
-    if (rvol >= 3) signals.push('🔥 RVOL ' + rvol.toFixed(1) + 'x');
-    else if (rvol >= 2) signals.push('📈 RVOL ' + rvol.toFixed(1) + 'x');
-    else if (rvol >= 1.5) signals.push('📊 RVOL نشط');
-
-    if (chg >= 5 && chg <= 20) signals.push('✅ صعود ' + chg.toFixed(1) + '%');
-    else if (chg > 20 && chg <= 40) signals.push('🚀 فوران ' + chg.toFixed(1) + '%');
+    if (rvol >= 3) signals.push('🔥 RVOL ' + rvol.toFixed(1) + 'x'); else if (rvol >= 2) signals.push('📈 RVOL ' + rvol.toFixed(1) + 'x'); else if (rvol >= 1.5) signals.push('📊 RVOL نشط');
+    if (chg >= 5 && chg <= 20) signals.push('✅ صعود ' + chg.toFixed(1) + '%'); else if (chg > 20 && chg <= 40) signals.push('🚀 فوران ' + chg.toFixed(1) + '%');
     if (floatS > 0 && floatS <= 30e6 && floatS >= 5e6) signals.push('💎 Float ' + (floatS / 1e6).toFixed(1) + 'M');
-    if (w52 != null && w52 >= 85) signals.push('🏔️ قمة 52W');
-    if (vwapD != null && vwapD > 0) signals.push('📍 فوق VWAP');
+    if (w52 != null && w52 >= 85) signals.push('🏔️ قمة 52W'); if (vwapD != null && vwapD > 0) signals.push('📍 فوق VWAP');
     if (s._volDelta >= 50000 && s._priceDelta > 0) signals.push('⚡ شراء لحظي +' + fmtBig(s._volDelta));
 
-    if (price > 0 && price < 1) risks.push('🪙 سهم سنتات (<$1)');
-    if (floatS > 0 && floatS < 5e6) risks.push('🎯 Float ضيق جداً (فخ محتمل)');
-    if (chg > 45) risks.push('⚡ متضخم جداً');
-    if (chg < -5) risks.push('📉 هبوط حاد');
-    if (rvol > 20) risks.push('🎰 مضاربة عنيفة');
-    if (vol > 0 && vol < 100000) risks.push('💧 سيولة ضعيفة');
-    if (floatS > 120e6) risks.push('🐘 Float ثقيل');
-    if (vwapD != null && vwapD < 0) risks.push('⬇️ تحت VWAP');
-    if (oh != null && oh > 8) risks.push('📉 نازل ' + oh.toFixed(0) + '% من القمة');
-    if (s._volDelta >= 25000 && s._priceDelta < 0) risks.push('🩸 بيع بحجم');
-    var spPct = (s._realSpread && price > 0) ? s._spread / price * 100 : null;
-    if (spPct != null && spPct > 3) risks.push('↔️ سبريد واسع ' + spPct.toFixed(1) + '%');
+    if (price > 0 && price < 1) risks.push('🪙 سهم سنتات (<$1)'); if (floatS > 0 && floatS < 5e6) risks.push('🎯 Float ضيق جداً (فخ محتمل)');
+    if (chg > 45) risks.push('⚡ متضخم جداً'); if (chg < -5) risks.push('📉 هبوط حاد'); if (rvol > 20) risks.push('🎰 مضاربة عنيفة');
+    if (vol > 0 && vol < 100000) risks.push('💧 سيولة ضعيفة'); if (floatS > 120e6) risks.push('🐘 Float ثقيل'); if (vwapD != null && vwapD < 0) risks.push('⬇️ تحت VWAP');
+    if (oh != null && oh > 8) risks.push('📉 نازل ' + oh.toFixed(0) + '% من القمة'); if (s._volDelta >= 25000 && s._priceDelta < 0) risks.push('🩸 بيع بحجم');
+    var spPct = (s._realSpread && price > 0) ? s._spread / price * 100 : null; if (spPct != null && spPct > 3) risks.push('↔️ سبريد واسع ' + spPct.toFixed(1) + '%');
 
-    if (vol > 0 && vol < 80000) {
-      type = 'danger';
-    } else if (chg > 55 || chg < -8) {
-      type = 'unstable';
-    } else if (!healthy) {
-      type = momo >= 45 ? 'wait' : 'weak';
-    } else if (
-      momo >= 75 && rvol >= 2 && chg >= 5 && chg <= 40 &&
-      price >= 1 && vol >= 500000 && vwapD != null &&
-      (spPct == null || spPct <= 3) &&
-      (floatS === 0 || floatS <= 100e6)
-    ) {
-      type = 'enter';
-    } else if (momo >= 62 && rvol >= 1.5 && price >= 1) {
-      type = 'watch';
-    } else if (momo >= 45) {
-      type = 'wait';
-    } else {
-      type = 'weak';
-    }
+    if (vol > 0 && vol < 80000) type = 'danger'; else if (chg > 55 || chg < -8) type = 'unstable'; else if (!healthy) type = momo >= 45 ? 'wait' : 'weak';
+    else if (momo >= 75 && rvol >= 2 && chg >= 5 && chg <= 40 && price >= 1 && vol >= 500000 && vwapD != null && (spPct == null || spPct <= 3) && (floatS === 0 || floatS <= 100e6)) type = 'enter';
+    else if (momo >= 62 && rvol >= 1.5 && price >= 1) type = 'watch'; else if (momo >= 45) type = 'wait'; else type = 'weak';
 
     var tp1, tp2, sl;
     if (price > 0) {
-      var risk;
-      if (vwapD != null && vwapD > 0) {
-        var vwapPrice = price / (1 + vwapD / 100);
-        risk = price - vwapPrice * 0.995;
-      } else {
-        risk = price * 0.07;
-      }
-      risk = Math.min(price * 0.10, Math.max(price * 0.03, risk));
-      sl = price - risk;
-      tp1 = price + risk * 1.5;
-      tp2 = price + risk * 3;
+      var risk; if (vwapD != null && vwapD > 0) { var vwapPrice = price / (1 + vwapD / 100); risk = price - vwapPrice * 0.995; } else { risk = price * 0.07; }
+      risk = Math.min(price * 0.10, Math.max(price * 0.03, risk)); sl = price - risk; tp1 = price + risk * 1.5; tp2 = price + risk * 3;
     }
-
-    var labels = {
-      enter: { txt: '🚀 ادخل فوراً', cls: 'enter' },
-      watch: { txt: '👀 مراقبة', cls: 'watch' },
-      wait: { txt: '⏸️ انتظر', cls: 'wait' },
-      weak: { txt: '💤 ضعيف', cls: 'weak' },
-      unstable: { txt: '⚡ غير مستقر', cls: 'unstable' },
-      danger: { txt: '🛑 خطر', cls: 'danger' }
-    };
-
-    s._v = {
-      type: type, label: labels[type].txt, cls: labels[type].cls,
-      momo: momo, signals: signals, risks: risks,
-      tp1: tp1, tp2: tp2, sl: sl, rvol: rvol
-    };
+    var labels = { enter: { txt: '🚀 ادخل فوراً', cls: 'enter' }, watch: { txt: '👀 مراقبة', cls: 'watch' }, wait: { txt: '⏸️ انتظر', cls: 'wait' }, weak: { txt: '💤 ضعيف', cls: 'weak' }, unstable: { txt: '⚡ غير مستقر', cls: 'unstable' }, danger: { txt: '🛑 خطر', cls: 'danger' } };
+    s._v = { type: type, label: labels[type].txt, cls: labels[type].cls, momo: momo, signals: signals, risks: risks, tp1: tp1, tp2: tp2, sl: sl, rvol: rvol };
     return s._v;
   }
 
-  /* ---------------- 6. تعريف الـ 19 لوحة ---------------- */
-  function P(s) { return num(s.price) || 0; }
-  function C(s) { return num(s.changePct) || 0; }
-  function V(s) { return num(s.volume) || 0; }
-  function F(s) { return num(s.floatShares) || 0; }
-  function R(s) { return computeVerdict(s).rvol; }
-  function M(s) { return computeVerdict(s).momo; }
-  function W(s) { var w = num(s.week52Pos); return w == null ? -1 : w; }
-  function VW(s) { var w = num(s.vwapDiff); return w == null ? -999 : w; }
+  /* ---------------- 6. تعريف اللوحات ---------------- */
+  function P(s) { return num(s.price) || 0; } function C(s) { return num(s.changePct) || 0; } function V(s) { return num(s.volume) || 0; } function F(s) { return num(s.floatShares) || 0; }
+  function R(s) { return computeVerdict(s).rvol; } function M(s) { return computeVerdict(s).momo; } function W(s) { var w = num(s.week52Pos); return w == null ? -1 : w; } function VW(s) { var w = num(s.vwapDiff); return w == null ? -999 : w; }
 
   var PANELS = [
     { num: 13, id: 'under20', title: 'UNDER 20 MOVING UP FAST', color: '#38bdf8', rbg: 'linear-gradient(160deg, #082f49 0%, #0369a1 100%)', cols: ['price', 'vol', 'flt', 'chg'], test: function (s) { return P(s) > 0 && P(s) <= 20 && C(s) >= 4 && R(s) >= 1.5; }, sort: function (a, b) { return (C(b) * R(b)) - (C(a) * R(a)); } },
@@ -498,48 +304,21 @@
     desc:  { h: 'DESC.', cls: 'col-vol',   f: function (s) { if (Math.abs(C(s)) >= 35) return '<span class="halt-badge">VOLATILE</span>'; if (R(s) >= 10) return '<span class="halt-badge" style="background:#d97706">SURGE</span>'; return 'Events'; }}
   };
 
-  var HIST_MS = 15 * 60 * 1000;
-  var WIN_MS  = 3 * 60 * 1000;
-  var EVT_MS  = 5 * 60 * 1000;
-  var MIN_AGE = 60 * 1000;
-
-  var hist = {};
-  var sessHigh = {};
-  var evts = {};
+  var HIST_MS = 15 * 60 * 1000; var WIN_MS = 3 * 60 * 1000; var EVT_MS = 5 * 60 * 1000; var MIN_AGE = 60 * 1000;
+  var hist = {}; var sessHigh = {}; var evts = {};
 
   function enrichHistory(s) {
-    var sym = s.symbol;
-    var now = Date.now();
-    var p = num(s.price) || 0;
-    var v = num(s.volume) || 0;
-    var w = num(s.vwapDiff);
-    var h = hist[sym] || (hist[sym] = []);
-    var e = evts[sym] || (evts[sym] = {});
-    var last = h.length ? h[h.length - 1] : null;
-    var prevHigh = sessHigh[sym];
-
-    var ref = null;
-    for (var i = 0; i < h.length; i++) {
-      if (now - h[i].t <= WIN_MS) { ref = h[i]; break; }
-    }
-    s._chg3m = null;
-    s._vol3m = 0;
-    if (ref && ref.p > 0 && now - ref.t >= MIN_AGE) {
-      s._chg3m = (p - ref.p) / ref.p * 100;
-      s._vol3m = Math.max(0, v - ref.v);
-    }
-
-    var established = h.length >= 6;
-    function fresh(k) { return !e[k] || now - e[k] > EVT_MS; }
-
+    var sym = s.symbol; var now = Date.now(); var p = num(s.price) || 0; var v = num(s.volume) || 0; var w = num(s.vwapDiff);
+    var h = hist[sym] || (hist[sym] = []); var e = evts[sym] || (evts[sym] = {}); var last = h.length ? h[h.length - 1] : null; var prevHigh = sessHigh[sym];
+    var ref = null; for (var i = 0; i < h.length; i++) { if (now - h[i].t <= WIN_MS) { ref = h[i]; break; } }
+    s._chg3m = null; s._vol3m = 0;
+    if (ref && ref.p > 0 && now - ref.t >= MIN_AGE) { s._chg3m = (p - ref.p) / ref.p * 100; s._vol3m = Math.max(0, v - ref.v); }
+    var established = h.length >= 6; function fresh(k) { return !e[k] || now - e[k] > EVT_MS; }
     if (established && prevHigh && p > prevHigh && s._vol3m >= 30000 && fresh('brk')) e.brk = now;
     if (established && s._chg3m != null && s._chg3m <= -3 && s._vol3m >= 50000 && fresh('flush')) e.flush = now;
     if (last && last.w != null && w != null && last.w <= 0 && w > 0 && fresh('vwapx')) e.vwapx = now;
-
     sessHigh[sym] = Math.max(prevHigh || 0, p, num(s.high) || 0);
-
-    h.push({ t: now, p: p, v: v, w: w });
-    while (h.length && h[0].t < now - HIST_MS) h.shift();
+    h.push({ t: now, p: p, v: v, w: w }); while (h.length && h[0].t < now - HIST_MS) h.shift();
   }
 
   function evtActive(s, k) { var e = evts[s.symbol]; return !!(e && e[k] && Date.now() - e[k] < EVT_MS); }
@@ -560,14 +339,12 @@
 
   PANELS = EVENT_PANELS.concat(PANELS.filter(function (p) { return p.id !== 'topmovers'; }));
 
-  /* ---------------- 7. بناء اللوحات والرادار التفاعلي ---------------- */
+  /* ---------------- 7. بناء اللوحات ---------------- */
   function renderPanels(rows) {
     if (!panelsEl) return;
     rows = rows || [];
     var limit = parseInt(fRows ? fRows.value : '8', 10) || 8;
     var q = (uiState.search || '').trim().toUpperCase();
-
-    var symPanelCount = {};
     var panelOutputs = [];
 
     PANELS.forEach(function (p) {
@@ -585,14 +362,11 @@
       var maxRows = uiState.maximized === p.id ? 40 : limit;
       var sliced = list.slice(0, maxRows);
 
-      sliced.forEach(function (s) {
-        if (p.id !== 'flush') symPanelCount[s.symbol] = (symPanelCount[s.symbol] || 0) + 1;
-      });
-
       var prev = prevPanelSyms[p.id] || null;
       var syms = sliced.map(function (s) { return s.symbol; });
       if (rows.length > 0) prevPanelSyms[p.id] = syms;
 
+      // تسجيل الأسهم الجديدة في قسم الناطق
       if (prev && rows.length > 0) {
         sliced.forEach(function (s) {
           if (prev.indexOf(s.symbol) === -1) {
@@ -601,7 +375,7 @@
             liveFeedLogs.unshift({ time: tStr, sym: s.symbol, panel: p.title, price: P(s), chg: C(s) });
           }
         });
-        if (liveFeedLogs.length > 25) liveFeedLogs.length = 25;
+        if (liveFeedLogs.length > 30) liveFeedLogs.length = 30; // نحتفظ بآخر 30 حدث
       }
 
       var head = '<tr><th>SYMBOL</th>' + p.cols.map(function (c) { return '<th>' + COLS[c].h + '</th>'; }).join('') + '</tr>';
@@ -629,29 +403,17 @@
       );
     });
 
-    var hotSyms = Object.keys(symPanelCount).filter(function (sym) { return symPanelCount[sym] >= 3; }).sort(function (a, b) { return symPanelCount[b] - symPanelCount[a]; }).slice(0, 12);
-
     var cmdBarHtml =
       '<div class="momo-cmd-bar">' +
         '<div class="momo-cmd-group"><span style="font-weight:900;color:#38bdf8;letter-spacing:0.5px;font-size:12.5px">⚡ MOMO PRO TERMINAL</span><input type="text" id="momoQuickSearch" class="momo-search" placeholder="🔍 ابحث عن سهم..." value="' + esc(uiState.search) + '">' + (uiState.highlightSym ? '<button type="button" class="momo-btn active" id="momoClearHi">إلغاء التمييز: ' + esc(uiState.highlightSym) + ' ✕</button>' : '') + '</div>' +
         '<div class="momo-cmd-group"><button type="button" class="momo-btn ' + (uiState.theme === 'royal' ? 'active' : '') + '" data-ui-theme="royal">💎 Royal Glow</button><button type="button" class="momo-btn ' + (uiState.theme === 'oled' ? 'active' : '') + '" data-ui-theme="oled">🌑 OLED</button><button type="button" class="momo-btn ' + (uiState.voice ? 'active' : '') + '" id="momoVoiceBtn">🔊 نطق: ' + (uiState.voice ? 'مفعل' : 'مغلق') + '</button><button type="button" class="momo-btn" id="momoExportCsv">📥 CSV</button></div>' +
       '</div>';
 
-    var hotBarHtml = '<div class="momo-hot-bar"><span style="color:#cbd5e1;font-weight:800;white-space:nowrap">🔥 الأسهم المشتعلة:</span>';
-    pinnedSyms.forEach(function (sym) { hotBarHtml += '<span class="momo-hot-tag pinned" data-hi-sym="' + esc(sym) + '">⭐ ' + esc(sym) + '</span>'; });
-    if (hotSyms.length) {
-      hotSyms.forEach(function (sym) {
-        var rObj = rows.find(function (r) { return r.symbol === sym; });
-        var chgTxt = rObj && isNum(rObj.changePct) ? (rObj.changePct >= 0 ? '+' : '') + fmt(rObj.changePct, 0) + '%' : '';
-        hotBarHtml += '<span class="momo-hot-tag hot-fire" data-hi-sym="' + esc(sym) + '">🔥 ' + esc(sym) + ' <small>' + chgTxt + '</small> <span class="cnt">' + symPanelCount[sym] + 'x</span></span>';
-      });
-    } else { hotBarHtml += '<span style="color:#94a3b8">بانتظار تقاطع السيولة...</span>'; }
-    hotBarHtml += '</div>';
-
-    var squawkHtml = '<div class="momo-Squawk-bar"><span class="squawk-label">LIVE SQUAWK</span><div class="squawk-items">' + (liveFeedLogs.length ? liveFeedLogs.map(function (item) { return '<span class="squawk-item" data-symbol="' + esc(item.sym) + '"><small style="color:#94a3b8">[' + item.time + ']</small> <b>' + esc(item.sym) + '</b> تحرك في <u style="color:#38bdf8">' + esc(item.panel) + '</u></span>'; }).join(' • ') : '<span>رادار الاختراقات اللحظية يعمل الآن...</span>') + '</div></div>';
-
     panelsEl.className = 'sc-grid mb-3 theme-' + uiState.theme;
-    panelsEl.innerHTML = cmdBarHtml + hotBarHtml + '<div class="momo-grid-wrap" style="--momo-cols:' + uiState.colsPerRow + '">' + panelOutputs.join('') + '</div>' + squawkHtml;
+    panelsEl.innerHTML = cmdBarHtml + '<div class="momo-grid-wrap" style="--momo-cols:' + uiState.colsPerRow + '">' + panelOutputs.join('') + '</div>';
+
+    // تحديث جدول الناطق (Speaker) بعد رسم اللوحات
+    renderSpeakerTable();
 
     var searchInp = document.getElementById('momoQuickSearch');
     if (searchInp) {
@@ -662,6 +424,31 @@
         if (newInp) { newInp.focus(); newInp.setSelectionRange(newInp.value.length, newInp.value.length); }
       });
     }
+  }
+
+  /* ---------------- 7.5. رسم جدول الناطق اللحظي ---------------- */
+  function renderSpeakerTable() {
+    var speakerBody = document.getElementById('speakerRows');
+    if (!speakerBody) return;
+
+    if (!liveFeedLogs.length) {
+      speakerBody.innerHTML = '<tr><td colspan="5" class="text-body-secondary py-4">بانتظار إشارات الرادار اللحظية...</td></tr>';
+      return;
+    }
+
+    speakerBody.innerHTML = liveFeedLogs.map(function (log) {
+      var isUp = log.chg >= 0;
+      var chgColor = isUp ? 'text-success' : 'text-danger';
+      var chgIcon = isUp ? '▲' : '▼';
+
+      return '<tr data-symbol="' + esc(log.sym) + '" style="cursor:pointer">' +
+        '<td class="text-body-secondary" dir="ltr">' + log.time + '</td>' +
+        '<td class="fw-bold text-white fs-6">' + log.sym + '</td>' +
+        '<td><span class="badge bg-secondary bg-opacity-50 text-light">' + esc(log.panel) + '</span></td>' +
+        '<td class="fw-bold" dir="ltr">$' + fmt(log.price, log.price < 1 ? 4 : 2) + '</td>' +
+        '<td class="fw-bold ' + chgColor + '" dir="ltr">' + chgIcon + ' ' + fmt(Math.abs(log.chg), 2) + '%</td>' +
+        '</tr>';
+    }).join('');
   }
 
   /* ---------------- 8. بطاقة الفحص العائمة ---------------- */
@@ -676,9 +463,7 @@
     if (!s) return;
     var hud = getOrCreateHud();
     var v = computeVerdict(s);
-    var price = num(s.price) || 0;
-    var dec = price < 1 ? 4 : 2;
-    var chg = num(s.changePct) || 0;
+    var price = num(s.price) || 0; var dec = price < 1 ? 4 : 2; var chg = num(s.changePct) || 0;
 
     hud.innerHTML =
       '<div class="hud-hdr"><div><span class="hud-sym">' + esc(s.symbol) + '</span> <small style="color:#cbd5e1">' + esc((s.name || '').slice(0, 18)) + '</small></div><span class="v-pill v-' + v.cls + '" style="font-size:10.5px;padding:2px 6px;border-radius:4px;background:#1e293b;color:#fff;font-weight:800">' + esc(v.label) + '</span></div>' +
@@ -701,66 +486,43 @@
   function positionHud(ev) {
     var hud = document.getElementById('momoHoverHud');
     if (!hud || hud.style.display === 'none') return;
-    var x = ev.clientX + 16;
-    var y = ev.clientY + 16;
+    var x = ev.clientX + 16; var y = ev.clientY + 16;
     if (x + 295 > window.innerWidth) x = ev.clientX - 300;
     if (y + 215 > window.innerHeight) y = ev.clientY - 215;
-    hud.style.left = x + 'px';
-    hud.style.top = y + 'px';
+    hud.style.left = x + 'px'; hud.style.top = y + 'px';
   }
 
   function hideHoverHud() { var hud = document.getElementById('momoHoverHud'); if (hud) hud.style.display = 'none'; }
 
   if (panelsEl) {
-    panelsEl.addEventListener('mouseover', function (e) {
-      var tr = e.target.closest('tr[data-symbol]');
-      if (tr) showHoverHud(tr.getAttribute('data-symbol'), e);
-    });
+    panelsEl.addEventListener('mouseover', function (e) { var tr = e.target.closest('tr[data-symbol]'); if (tr) showHoverHud(tr.getAttribute('data-symbol'), e); });
     panelsEl.addEventListener('mousemove', positionHud);
     panelsEl.addEventListener('mouseleave', hideHoverHud);
   }
 
-  /* ---------------- 9. الجدول الرئيسي التفصيلي (المعدل) ---------------- */
+  /* ---------------- 9. الجدول الرئيسي التفصيلي ---------------- */
   function renderRow(s) {
     var v = computeVerdict(s);
-    var price = num(s.price);
-    var dec = (price != null && price < 1) ? 4 : 2;
-    var chg = num(s.changePct);
-    var chgCls = (chg || 0) >= 0 ? 'text-success' : 'text-danger';
-    var chgIcon = (chg || 0) >= 0 ? '▲' : '▼';
-
-    var priceStr = isNum(price) ? '$' + fmt(price, dec) : '—';
-    var chgStr = isNum(chg) ? chgIcon + ' ' + fmt(Math.abs(chg), 2) + '%' : '—';
-    var volStr = fmtBig(s.volume);
-    var rvolStr = v.rvol > 0 ? '<span class="badge bg-dark border border-info text-info">' + fmt(v.rvol, 2) + 'x</span>' : '—';
+    var price = num(s.price); var dec = (price != null && price < 1) ? 4 : 2; var chg = num(s.changePct);
+    var chgCls = (chg || 0) >= 0 ? 'text-success' : 'text-danger'; var chgIcon = (chg || 0) >= 0 ? '▲' : '▼';
+    var priceStr = isNum(price) ? '$' + fmt(price, dec) : '—'; var chgStr = isNum(chg) ? chgIcon + ' ' + fmt(Math.abs(chg), 2) + '%' : '—';
+    var volStr = fmtBig(s.volume); var rvolStr = v.rvol > 0 ? '<span class="badge bg-dark border border-info text-info">' + fmt(v.rvol, 2) + 'x</span>' : '—';
     var floatStr = isNum(s.floatShares) ? '<span class="text-warning fw-bold">' + fmtBig(s.floatShares) + '</span>' : '—';
-    var countryStr = (s.country || 'USA').toUpperCase();
-    var actStr = s.sector || s.industry || '—';
-
+    var countryStr = (s.country || 'USA').toUpperCase(); var actStr = s.sector || s.industry || '—';
     var tpSlHtml = '';
     if (v.tp1 && v.sl && (v.type === 'enter' || v.type === 'watch')) {
       tpSlHtml = '<div class="d-flex flex-column gap-1 text-start small"><span class="text-success fw-bold">TP1: $' + fmt(v.tp1, dec) + '</span><span class="text-danger fw-bold">SL: $' + fmt(v.sl, dec) + '</span></div>';
-    } else {
-      tpSlHtml = '<span class="text-body-secondary">—</span>';
-    }
+    } else { tpSlHtml = '<span class="text-body-secondary">—</span>'; }
 
     return '<tr data-symbol="' + esc(s.symbol) + '" style="cursor:pointer" class="align-middle">' +
-      '<td class="text-start">' +
-        '<div class="d-flex align-items-center gap-2">' +
-          '<div class="rounded-circle bg-primary bg-opacity-25 d-flex align-items-center justify-content-center text-primary fw-bold" style="width:32px;height:32px;font-size:12px;">' + esc(s.symbol.substring(0, 2)) + '</div>' +
-          '<div><div class="fw-bold text-white fs-6">' + esc(s.symbol) + '</div><div class="text-body-secondary" style="font-size:11px;">' + countryStr + '</div></div>' +
-        '</div>' +
-      '</td>' +
+      '<td class="text-start"><div class="d-flex align-items-center gap-2"><div class="rounded-circle bg-primary bg-opacity-25 d-flex align-items-center justify-content-center text-primary fw-bold" style="width:32px;height:32px;font-size:12px;">' + esc(s.symbol.substring(0, 2)) + '</div><div><div class="fw-bold text-white fs-6">' + esc(s.symbol) + '</div><div class="text-body-secondary" style="font-size:11px;">' + countryStr + '</div></div></div></td>' +
       '<td class="fw-bold text-white fs-6" dir="ltr">' + priceStr + '</td>' +
       '<td class="fw-bold ' + chgCls + '" dir="ltr">' + chgStr + '</td>' +
       '<td class="text-body-secondary" dir="ltr">' + volStr + '</td>' +
       '<td>' + rvolStr + '</td>' +
       '<td>' + floatStr + '</td>' +
       '<td class="text-start"><span class="badge bg-secondary bg-opacity-50 text-light fw-normal">' + esc(actStr) + '</span></td>' +
-      '<td>' +
-        '<div class="progress mx-auto" style="height: 5px; width: 60px;"><div class="progress-bar bg-info" role="progressbar" style="width: ' + v.momo + '%"></div></div>' +
-        '<small class="text-body-secondary fw-bold">' + v.momo + '/100</small>' +
-      '</td>' +
+      '<td><div class="progress mx-auto" style="height: 5px; width: 60px;"><div class="progress-bar bg-info" role="progressbar" style="width: ' + v.momo + '%"></div></div><small class="text-body-secondary fw-bold">' + v.momo + '/100</small></td>' +
       '<td><span class="badge v-' + v.cls + ' px-3 py-2 rounded-pill">' + esc(v.label) + '</span></td>' +
       '<td>' + tpSlHtml + '</td>' +
       '</tr>';
@@ -768,10 +530,7 @@
 
   function renderTable(rows) {
     if (!tbody) return;
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-body-secondary">لا توجد أسهم مطابقة حالياً — جرّب تقليل شرط الـ RVOL أو التغيّر% أو توسيع نطاق البحث</td></tr>';
-      return;
-    }
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-body-secondary">لا توجد أسهم مطابقة حالياً — جرّب تقليل شرط الـ RVOL أو التغيّر% أو توسيع نطاق البحث</td></tr>'; return; }
     tbody.innerHTML = rows.map(renderRow).join('');
   }
 
@@ -787,8 +546,7 @@
   /* ---------------- 10. التنبيهات الصوتية ---------------- */
   function beep() {
     try {
-      var ctx = new (window.AudioContext || window.webkitAudioContext)();
-      var o = ctx.createOscillator(); var g = ctx.createGain();
+      var ctx = new (window.AudioContext || window.webkitAudioContext)(); var o = ctx.createOscillator(); var g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination); o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.08;
       o.start(); o.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.15);
       g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3); o.stop(ctx.currentTime + 0.3);
@@ -798,37 +556,28 @@
   function speakAlert(symbols) {
     if (!uiState.voice || !('speechSynthesis' in window)) return;
     try {
-      window.speechSynthesis.cancel();
-      var symSpelled = symbols.slice(0, 2).map(function (s) { return s.split('').join(' '); }).join(', and ');
+      window.speechSynthesis.cancel(); var symSpelled = symbols.slice(0, 2).map(function (s) { return s.split('').join(' '); }).join(', and ');
       var u = new SpeechSynthesisUtterance('Momo Alert! ' + symSpelled + ' breaking out.');
       u.lang = 'en-US'; u.rate = 1.15; window.speechSynthesis.speak(u);
     } catch (e) { }
   }
 
   function flashNewEnters(rows) {
-    var prev = [];
-    try { prev = JSON.parse(lsGet('scanner-prev-enters', '[]') || '[]'); } catch (e) { }
+    var prev = []; try { prev = JSON.parse(lsGet('scanner-prev-enters', '[]') || '[]'); } catch (e) { }
     var curr = rows.filter(function (s) { return computeVerdict(s).type === 'enter'; }).map(function (s) { return s.symbol; });
     var newOnes = curr.filter(function (sym) { return prev.indexOf(sym) === -1; });
-    if (newOnes.length && prev.length) {
-      if (soundEl && soundEl.checked) beep();
-      if (uiState.voice) speakAlert(newOnes);
-      setStatus('🚀 إشارة دخول جديدة: ' + newOnes.join(', '), 'text-success');
-    }
+    if (newOnes.length && prev.length) { if (soundEl && soundEl.checked) beep(); if (uiState.voice) speakAlert(newOnes); setStatus('🚀 إشارة دخول جديدة: ' + newOnes.join(', '), 'text-success'); }
     lsSet('scanner-prev-enters', JSON.stringify(curr));
   }
 
-  /* ---------------- 11. الربط مع الحاسبة والتفاعلات ---------------- */
+  /* ---------------- 11. الربط والتفاعلات ---------------- */
   function selectStockFromScanner(sym) {
     hideHoverHud();
     var row = lastScannedRows.find(function (r) { return r.symbol === sym; });
-    var symInp = getEl('sym');
-    if (symInp) symInp.value = sym;
+    var symInp = getEl('sym'); if (symInp) symInp.value = sym;
 
     if (row) {
-      var price = num(row.price);
-      var chg = num(row.changePct);
-      var pc = num(row.previousClose || row.prevClose);
+      var price = num(row.price); var chg = num(row.changePct); var pc = num(row.previousClose || row.prevClose);
       if (pc == null && price != null && chg != null) pc = price / (1 + (chg / 100));
       var v = computeVerdict(row);
       var stockData = { sym: row.symbol, name: row.name || '', activity: row.sector || row.industry || 'مدرج في الاسكانر', price: price, pc: pc, chg: chg, vol: num(row.volume), floatShares: num(row.floatShares), floatPct: num(row.floatPct), mc: num(row.marketCap), bid: num(row.bid) || null, ask: num(row.ask) || null };
@@ -836,24 +585,19 @@
       if (typeof window.saveStockToCache === 'function') window.saveStockToCache(stockData);
       if (price > 0) {
         var buyInp = getEl('buy'); var sellInp = getEl('sell');
-        if (buyInp) buyInp.value = price;
-        if (v.tp1 && sellInp) sellInp.value = Number(v.tp1.toFixed(price < 1 ? 4 : 2));
+        if (buyInp) buyInp.value = price; if (v.tp1 && sellInp) sellInp.value = Number(v.tp1.toFixed(price < 1 ? 4 : 2));
         if (typeof window.calc === 'function') window.calc();
       }
       var calcSec = getEl('calcSection'); if (calcSec) calcSec.scrollIntoView({ behavior: 'smooth' });
       var getBtn = getEl('get'); if (getBtn) getBtn.click();
     } else {
-      var getBtn2 = getEl('get'); if (getBtn2) getBtn2.click();
-      var calcSec2 = getEl('calcSection'); if (calcSec2) calcSec2.scrollIntoView({ behavior: 'smooth' });
+      var getBtn2 = getEl('get'); if (getBtn2) getBtn2.click(); var calcSec2 = getEl('calcSection'); if (calcSec2) calcSec2.scrollIntoView({ behavior: 'smooth' });
     }
   }
 
   function togglePinSymbol(sym) {
-    var idx = pinnedSyms.indexOf(sym);
-    if (idx === -1) pinnedSyms.push(sym); else pinnedSyms.splice(idx, 1);
-    lsSet(K_PINNED, JSON.stringify(pinnedSyms));
-    renderPanels(lastScannedRows);
-    renderTable(lastScannedRows.slice(0, parseInt(fLimit ? fLimit.value : '50', 10) || 50));
+    var idx = pinnedSyms.indexOf(sym); if (idx === -1) pinnedSyms.push(sym); else pinnedSyms.splice(idx, 1);
+    lsSet(K_PINNED, JSON.stringify(pinnedSyms)); renderPanels(lastScannedRows); renderTable(lastScannedRows.slice(0, parseInt(fLimit ? fLimit.value : '50', 10) || 50));
   }
 
   function exportScannerCsv() {
@@ -869,17 +613,12 @@
   }
 
   function onContainerClick(e) {
-    var themeBtn = e.target.closest('[data-ui-theme]');
-    if (themeBtn) { uiState.theme = themeBtn.getAttribute('data-ui-theme'); saveUiState(); renderPanels(lastScannedRows); return; }
+    var themeBtn = e.target.closest('[data-ui-theme]'); if (themeBtn) { uiState.theme = themeBtn.getAttribute('data-ui-theme'); saveUiState(); renderPanels(lastScannedRows); return; }
     if (e.target.closest('#momoVoiceBtn')) { uiState.voice = !uiState.voice; saveUiState(); renderPanels(lastScannedRows); if (uiState.voice) speakAlert(['MOMO']); return; }
     if (e.target.closest('#momoExportCsv')) { exportScannerCsv(); return; }
-    var maxBtn = e.target.closest('[data-max-panel]');
-    if (maxBtn) { var pid = maxBtn.getAttribute('data-max-panel'); uiState.maximized = uiState.maximized === pid ? null : pid; renderPanels(lastScannedRows); return; }
-    var hiTag = e.target.closest('[data-hi-sym]');
-    if (hiTag) { var hSym = hiTag.getAttribute('data-hi-sym'); uiState.highlightSym = uiState.highlightSym === hSym ? null : hSym; renderPanels(lastScannedRows); return; }
+    var maxBtn = e.target.closest('[data-max-panel]'); if (maxBtn) { var pid = maxBtn.getAttribute('data-max-panel'); uiState.maximized = uiState.maximized === pid ? null : pid; renderPanels(lastScannedRows); return; }
     if (e.target.closest('#momoClearHi')) { uiState.highlightSym = null; renderPanels(lastScannedRows); return; }
-    var symEl = e.target.closest('[data-symbol]');
-    if (symEl) { selectStockFromScanner(symEl.getAttribute('data-symbol')); }
+    var symEl = e.target.closest('[data-symbol]'); if (symEl) { selectStockFromScanner(symEl.getAttribute('data-symbol')); }
   }
 
   function onContextMenu(e) {
@@ -890,210 +629,107 @@
   if (tbody) { tbody.addEventListener('click', onContainerClick); tbody.addEventListener('contextmenu', onContextMenu); }
   if (panelsEl) { panelsEl.addEventListener('click', onContainerClick); panelsEl.addEventListener('contextmenu', onContextMenu); }
 
-  /* ---------------- 12. الفلاتر والاتصال بالـ Worker (/scan) ---------------- */
+  /* ---------------- 12. الفلاتر والاتصال ---------------- */
   function baseFilters(opts) {
-    opts = opts || {};
-    var filters = [];
-    var pMin = fPriceMin ? num(fPriceMin.value) : 0.01;
-    var pMax = fPriceMax ? num(fPriceMax.value) : 25;
-    var vMin = fVolumeMin ? num(fVolumeMin.value) : null;
-    var vMax = fVolumeMax ? num(fVolumeMax.value) : null;
-    var fltMin = fFloatMin ? num(fFloatMin.value) : null;
-    var fltMax = fFloatMax ? num(fFloatMax.value) : null;
-    var country = fCountry ? fCountry.value : 'all';
-    var cMin = fCapMin ? num(fCapMin.value) : null;
+    opts = opts || {}; var filters = [];
+    var pMin = fPriceMin ? num(fPriceMin.value) : 0.01; var pMax = fPriceMax ? num(fPriceMax.value) : 25;
+    var vMin = fVolumeMin ? num(fVolumeMin.value) : null; var vMax = fVolumeMax ? num(fVolumeMax.value) : null;
+    var fltMin = fFloatMin ? num(fFloatMin.value) : null; var fltMax = fFloatMax ? num(fFloatMax.value) : null;
+    var country = fCountry ? fCountry.value : 'all'; var cMin = fCapMin ? num(fCapMin.value) : null;
 
-    // السعر
-    if (!opts.noPrice) {
-      if (pMin != null && pMax != null) filters.push({ left: 'close', operation: 'in_range', right: [pMin, pMax] });
-      else if (pMin != null) filters.push({ left: 'close', operation: 'greater', right: pMin });
-      else if (pMax != null) filters.push({ left: 'close', operation: 'less', right: pMax });
-    }
-
-    // الفوليوم
-    if (vMin != null && vMax != null) filters.push({ left: 'volume', operation: 'in_range', right: [vMin, vMax] });
-    else if (vMin != null) filters.push({ left: 'volume', operation: 'greater', right: vMin });
-    else if (vMax != null) filters.push({ left: 'volume', operation: 'less', right: vMax });
-
-    // Free Float
-    if (fltMin != null && fltMax != null) filters.push({ left: 'float_shares_outstanding', operation: 'in_range', right: [fltMin, fltMax] });
-    else if (fltMin != null) filters.push({ left: 'float_shares_outstanding', operation: 'greater', right: fltMin });
-    else if (fltMax != null) filters.push({ left: 'float_shares_outstanding', operation: 'less', right: fltMax });
-
-    // Market Cap
+    if (!opts.noPrice) { if (pMin != null && pMax != null) filters.push({ left: 'close', operation: 'in_range', right: [pMin, pMax] }); else if (pMin != null) filters.push({ left: 'close', operation: 'greater', right: pMin }); else if (pMax != null) filters.push({ left: 'close', operation: 'less', right: pMax }); }
+    if (vMin != null && vMax != null) filters.push({ left: 'volume', operation: 'in_range', right: [vMin, vMax] }); else if (vMin != null) filters.push({ left: 'volume', operation: 'greater', right: vMin }); else if (vMax != null) filters.push({ left: 'volume', operation: 'less', right: vMax });
+    if (fltMin != null && fltMax != null) filters.push({ left: 'float_shares_outstanding', operation: 'in_range', right: [fltMin, fltMax] }); else if (fltMin != null) filters.push({ left: 'float_shares_outstanding', operation: 'greater', right: fltMin }); else if (fltMax != null) filters.push({ left: 'float_shares_outstanding', operation: 'less', right: fltMax });
     if (cMin != null && cMin > 0) filters.push({ left: 'market_cap_basic', operation: 'greater', right: cMin });
-
-    // Country
     if (country !== 'all') filters.push({ left: 'country', operation: 'equal', right: country });
-
-    // Exchange
     var market = fMarket ? fMarket.value : 'all';
-    if (market === 'nasdaq') filters.push({ left: 'exchange', operation: 'equal', right: 'NASDAQ' });
-    else if (market === 'nyse') filters.push({ left: 'exchange', operation: 'equal', right: 'NYSE' });
-    else if (market === 'amex') filters.push({ left: 'exchange', operation: 'equal', right: 'AMEX' });
-
+    if (market === 'nasdaq') filters.push({ left: 'exchange', operation: 'equal', right: 'NASDAQ' }); else if (market === 'nyse') filters.push({ left: 'exchange', operation: 'equal', right: 'NYSE' }); else if (market === 'amex') filters.push({ left: 'exchange', operation: 'equal', right: 'AMEX' });
     filters.push({ left: 'type', operation: 'equal', right: 'stock' });
     return filters;
   }
 
   function largeCapFilters() {
-    var filters = [
-      { left: 'close', operation: 'greater', right: 0 },
-      { left: 'market_cap_basic', operation: 'greater', right: 1e10 },
-      { left: 'volume', operation: 'greater', right: 1000000 },
-      { left: 'type', operation: 'equal', right: 'stock' }
-    ];
+    var filters = [{ left: 'close', operation: 'greater', right: 0 }, { left: 'market_cap_basic', operation: 'greater', right: 1e10 }, { left: 'volume', operation: 'greater', right: 1000000 }, { left: 'type', operation: 'equal', right: 'stock' }];
     var market = fMarket ? fMarket.value : 'all';
-    if (market === 'nasdaq') filters.push({ left: 'exchange', operation: 'equal', right: 'NASDAQ' });
-    else if (market === 'nyse') filters.push({ left: 'exchange', operation: 'equal', right: 'NYSE' });
-    else if (market === 'amex') filters.push({ left: 'exchange', operation: 'equal', right: 'AMEX' });
+    if (market === 'nasdaq') filters.push({ left: 'exchange', operation: 'equal', right: 'NASDAQ' }); else if (market === 'nyse') filters.push({ left: 'exchange', operation: 'equal', right: 'NYSE' }); else if (market === 'amex') filters.push({ left: 'exchange', operation: 'equal', right: 'AMEX' });
     return filters;
   }
 
-  var scanning = false;
-  var autoTimer = null;
+  var scanning = false; var autoTimer = null;
 
   function getWorkerBase() {
-    var apiInput = getEl('api');
-    var b = (apiInput && apiInput.value ? apiInput.value : '').trim().replace(/\/+$/, '');
+    var apiInput = getEl('api'); var b = (apiInput && apiInput.value ? apiInput.value : '').trim().replace(/\/+$/, '');
     if (!b) b = 'https://small-disk-18d3stock-proxy.osamaanit.workers.dev';
-    if (!/^https?:\/\//i.test(b)) b = 'https://' + b;
-    return b;
+    if (!/^https?:\/\//i.test(b)) b = 'https://' + b; return b;
   }
 
   function postScan(base, filters, sortBy, sortOrder, limit) {
-    return fetch(base + '/scan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filters: filters, sort: { sortBy: sortBy, sortOrder: sortOrder }, range: [0, limit] })
-    }).then(function (r) {
-      return r.json().then(function (j) {
-        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
-        return j.data || [];
-      });
-    });
+    return fetch(base + '/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filters: filters, sort: { sortBy: sortBy, sortOrder: sortOrder }, range: [0, limit] }) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status)); return j.data || []; }); });
   }
 
-  var QUOTE_BASE_DEFAULT = 'https://falling-wildflower-192ebid-ask.osamaanit.workers.dev';
-  var quoteFeed = null;
-
-  function getQuoteBase() {
-    var b = ''; try { b = localStorage.getItem('quoteBase') || ''; } catch (e) {}
-    b = (b || QUOTE_BASE_DEFAULT).trim().replace(/\/+$/, '');
-    if (!/^https?:\/\//i.test(b)) b = 'https://' + b;
-    return b;
-  }
+  var QUOTE_BASE_DEFAULT = 'https://falling-wildflower-192ebid-ask.osamaanit.workers.dev'; var quoteFeed = null;
+  function getQuoteBase() { var b = ''; try { b = localStorage.getItem('quoteBase') || ''; } catch (e) {} b = (b || QUOTE_BASE_DEFAULT).trim().replace(/\/+$/, ''); if (!/^https?:\/\//i.test(b)) b = 'https://' + b; return b; }
 
   function fetchQuotes(symbols) {
-    quoteFeed = null;
-    if (!symbols.length) return Promise.resolve({});
+    quoteFeed = null; if (!symbols.length) return Promise.resolve({});
     return new Promise(function (resolve) {
-      var done = false;
-      function finish(v) { if (!done) { done = true; clearTimeout(timer); resolve(v); } }
+      var done = false; function finish(v) { if (!done) { done = true; clearTimeout(timer); resolve(v); } }
       var timer = setTimeout(function () { finish({}); }, 3500);
-      fetch(getQuoteBase() + '/quotes', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbols: symbols })
-      }).then(function (r) { return r.json(); }).then(function (j) {
-        if (j && j.ok && j.data) { if (!done) quoteFeed = j.feed || null; finish(j.data); } else finish({});
-      }).catch(function () { finish({}); });
+      fetch(getQuoteBase() + '/quotes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbols: symbols }) })
+        .then(function (r) { return r.json(); }).then(function (j) { if (j && j.ok && j.data) { if (!done) quoteFeed = j.feed || null; finish(j.data); } else finish({}); }).catch(function () { finish({}); });
     });
   }
 
-  function applyQuote(s, q) {
-    if (!q) return;
-    var b = num(q.bid), a = num(q.ask);
-    if (b > 0 && a > 0 && a > b) { s.bid = b; s.ask = a; s._quoteTs = q.t || null; }
-  }
+  function applyQuote(s, q) { if (!q) return; var b = num(q.bid), a = num(q.ask); if (b > 0 && a > 0 && a > b) { s.bid = b; s.ask = a; s._quoteTs = q.t || null; } }
 
   function doScan() {
-    if (scanning) return;
-    scanning = true;
-    if (scanBtn) scanBtn.disabled = true;
+    if (scanning) return; scanning = true; if (scanBtn) scanBtn.disabled = true;
     setStatus('⏳ جاري مسح السوق بالرادار الفائق...', 'text-warning');
 
-    var base = getWorkerBase();
-    var bf = baseFilters();
-    var soft = function () { return []; };
+    var base = getWorkerBase(); var bf = baseFilters(); var soft = function () { return []; };
 
-    Promise.all([
-      postScan(base, bf, 'change', 'desc', 150),
-      postScan(base, bf, 'volume', 'desc', 150).catch(soft),
-      postScan(base, bf, 'change', 'asc', 60).catch(soft),
-      postScan(base, largeCapFilters(), 'market_cap_basic', 'desc', 30).catch(soft)
-    ])
+    Promise.all([postScan(base, bf, 'change', 'desc', 150), postScan(base, bf, 'volume', 'desc', 150).catch(soft), postScan(base, bf, 'change', 'asc', 60).catch(soft), postScan(base, largeCapFilters(), 'market_cap_basic', 'desc', 30).catch(soft)])
       .then(function (parts) {
-        var qsyms = [], seen = {};
-        parts.forEach(function (arr) { arr.forEach(function (s) { if (s && s.symbol && !seen[s.symbol]) { seen[s.symbol] = 1; qsyms.push(s.symbol); } }); });
+        var qsyms = [], seen = {}; parts.forEach(function (arr) { arr.forEach(function (s) { if (s && s.symbol && !seen[s.symbol]) { seen[s.symbol] = 1; qsyms.push(s.symbol); } }); });
         return fetchQuotes(qsyms).then(function (qm) { return { parts: parts, qm: qm }; });
       })
       .then(function (res) {
-        var parts = res.parts, qm = res.qm;
-        var map = {};
-        var all = [];
+        var parts = res.parts, qm = res.qm; var map = {}; var all = [];
         parts.forEach(function (arr) {
           arr.forEach(function (s) {
-            if (!s || !s.symbol || map[s.symbol]) return;
-            map[s.symbol] = true;
-            applyQuote(s, qm[s.symbol]);
-            enrichStockMetrics(s);
-            enrichHistory(s);
-            all.push(s);
+            if (!s || !s.symbol || map[s.symbol]) return; map[s.symbol] = true; applyQuote(s, qm[s.symbol]); enrichStockMetrics(s); enrichHistory(s); all.push(s);
           });
         });
 
-        var nextSnap = {};
-        all.forEach(function (s) { nextSnap[s.symbol] = { price: num(s.price) || 0, vol: num(s.volume) || 0, chg: num(s.changePct) || 0 }; });
-        prevStockSnapshot = nextSnap;
-        lastScannedRows = all;
+        var nextSnap = {}; all.forEach(function (s) { nextSnap[s.symbol] = { price: num(s.price) || 0, vol: num(s.volume) || 0, chg: num(s.changePct) || 0 }; });
+        prevStockSnapshot = nextSnap; lastScannedRows = all;
 
         renderPanels(all);
 
-        var chgMin = fChangeMin ? num(fChangeMin.value) : null;
-        var rvMin = fRvolMin ? num(fRvolMin.value) : null;
-        var vFilter = fVerdict ? fVerdict.value : '';
-        var pMin = fPriceMin ? num(fPriceMin.value) : null;
-        var pMax = fPriceMax ? num(fPriceMax.value) : null;
+        var chgMin = fChangeMin ? num(fChangeMin.value) : null; var rvMin = fRvolMin ? num(fRvolMin.value) : null;
+        var vFilter = fVerdict ? fVerdict.value : ''; var pMin = fPriceMin ? num(fPriceMin.value) : null; var pMax = fPriceMax ? num(fPriceMax.value) : null;
 
-        // الفلترة النهائية للجدول (إزالة isHealthy عشان يظهر كل الأسهم)
         var main = all.filter(function (s) {
-          var p = P(s);
-          if (pMin != null && p < pMin) return false;
-          if (pMax != null && p > pMax) return false;
-          if (chgMin != null && C(s) < chgMin) return false;
-          if (rvMin != null && rvMin > 0 && R(s) < rvMin) return false;
-          if (vFilter && computeVerdict(s).type !== vFilter) return false;
-          if (P(s) < 1) return false;
-          return true;
+          var p = P(s); if (pMin != null && p < pMin) return false; if (pMax != null && p > pMax) return false;
+          if (chgMin != null && C(s) < chgMin) return false; if (rvMin != null && rvMin > 0 && R(s) < rvMin) return false;
+          if (vFilter && computeVerdict(s).type !== vFilter) return false; if (P(s) < 1) return false; return true;
         });
 
-        main.sort(mainSorter());
-        var lim = parseInt(fLimit ? fLimit.value : '50', 10) || 50;
-        var shown = main.slice(0, lim);
-        renderTable(shown);
-        flashNewEnters(all);
+        main.sort(mainSorter()); var lim = parseInt(fLimit ? fLimit.value : '50', 10) || 50;
+        var shown = main.slice(0, lim); renderTable(shown); flashNewEnters(all);
 
-        var now = new Date();
-        if (lastUpdate) lastUpdate.textContent = pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
+        var now = new Date(); if (lastUpdate) lastUpdate.textContent = pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
         if (countEl) countEl.textContent = shown.length + ' / ' + all.length;
         var nq = all.filter(function (s) { return s._realSpread; }).length;
         var nbboTxt = !quoteFeed ? ' · ⚠️ NBBO غير متاح' : (quoteFeed === 'sip' ? ' · NBBO SIP ' : ' · ⚠️ IEX فقط ') + nq + '/' + all.length;
         setStatus('✅ تم تحليل ' + all.length + ' سهم بنجاح' + nbboTxt, 'text-success');
       })
-      .catch(function (e) {
-        console.error('Scanner Error:', e);
-        setStatus('❌ ' + (e.message || 'فشل الاتصال بالـ Worker'), 'text-danger');
-      })
-      .finally(function () {
-        scanning = false;
-        if (scanBtn) scanBtn.disabled = false;
-      });
+      .catch(function (e) { console.error('Scanner Error:', e); setStatus('❌ ' + (e.message || 'فشل الاتصال بالـ Worker'), 'text-danger'); })
+      .finally(function () { scanning = false; if (scanBtn) scanBtn.disabled = false; });
   }
 
-  function startAuto() {
-    stopAuto();
-    if (!autoEl || !autoEl.checked) return;
-    autoTimer = setInterval(doScan, AUTO_MS);
-  }
+  function startAuto() { stopAuto(); if (!autoEl || !autoEl.checked) return; autoTimer = setInterval(doScan, AUTO_MS); }
   function stopAuto() { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } }
 
   if (autoEl) autoEl.addEventListener('change', function () { if (autoEl.checked) startAuto(); else stopAuto(); });
@@ -1103,23 +739,14 @@
   allFilterEls.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { saveFilters(); doScan(); }); });
 
   if (resetBtn) resetBtn.addEventListener('click', function () {
-    if (fPriceMin) fPriceMin.value = '0.01';
-    if (fPriceMax) fPriceMax.value = '25';
-    if (fVolumeMin) fVolumeMin.value = '100000';
-    if (fVolumeMax) fVolumeMax.value = '';
-    if (fFloatMin) fFloatMin.value = '';
-    if (fFloatMax) fFloatMax.value = '';
-    if (fCountry) fCountry.value = 'usa';
-    if (fCapMin) fCapMin.value = '0';
-    if (fChangeMin) fChangeMin.value = '2';
-    if (fRvolMin) fRvolMin.value = '1.2';
-    if (fMarket) fMarket.value = 'all';
-    if (fLimit) fLimit.value = '50';
-    if (fVerdict) fVerdict.value = '';
-    if (fSort) fSort.value = 'momo';
-    if (fRows) fRows.value = '8';
-    saveFilters();
-    doScan();
+    if (fPriceMin) fPriceMin.value = '0.01'; if (fPriceMax) fPriceMax.value = '25';
+    if (fVolumeMin) fVolumeMin.value = '100000'; if (fVolumeMax) fVolumeMax.value = '';
+    if (fFloatMin) fFloatMin.value = ''; if (fFloatMax) fFloatMax.value = '';
+    if (fCountry) fCountry.value = 'usa'; if (fCapMin) fCapMin.value = '0';
+    if (fChangeMin) fChangeMin.value = '2'; if (fRvolMin) fRvolMin.value = '1.2';
+    if (fMarket) fMarket.value = 'all'; if (fLimit) fLimit.value = '50';
+    if (fVerdict) fVerdict.value = ''; if (fSort) fSort.value = 'momo'; if (fRows) fRows.value = '8';
+    saveFilters(); doScan();
   });
 
   renderPanels([]);

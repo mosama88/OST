@@ -340,7 +340,41 @@
         </div>
     </section>
 
-    <!-- PRO GLOBAL SCANNER ($0.01 to $25) -->
+
+
+
+    <!-- قسم الناطق اللحظي (Speaker) -->
+    <section class="card shadow-sm mb-3 border-info border-opacity-50" id="speakerSection">
+        <div class="card-header bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h5 fw-bold mb-0">📢 الناطق اللحظي (Live Squawk)</h2>
+                <span class="badge bg-danger" style="animation: pulse 1.5s infinite;">مباشر الآن</span>
+            </div>
+            <small class="text-body-secondary">أحدث الإشارات والاختراقات من رادار الاسكانر</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 250px;">
+                <table class="table table-sm table-dark table-hover text-center mb-0" style="font-size: 0.85rem;">
+                    <thead class="sticky-top bg-body-tertiary shadow-sm" style="z-index: 5;">
+                        <tr>
+                            <th>الوقت</th>
+                            <th>السهم</th>
+                            <th>الحدث / اللوحة</th>
+                            <th>السعر</th>
+                            <th>التغير</th>
+                        </tr>
+                    </thead>
+                    <tbody id="speakerRows">
+                        <tr>
+                            <td colspan="5" class="text-body-secondary py-4">بانتظار إشارات الرادار اللحظية...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+
     <!-- PRO GLOBAL SCANNER (Advanced Search & Clean UI) -->
     <section class="card shadow-sm mb-3 border-success border-opacity-50" id="scannerSection">
         <div class="card-header bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -515,6 +549,8 @@
             </div>
         </div>
     </section>
+
+
 
     <!-- US Sessions & World Markets -->
     <div class="row g-3 mb-3">
