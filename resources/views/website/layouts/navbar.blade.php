@@ -32,9 +32,9 @@
                     لوحة التحكم </a>
             @endauth
             @guest
-                <button onclick="openModal('register')"
+                <a href="{{ route('login') }}"
                     class="px-5 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/30 transition">
-                    دخول 🚀</button>
+                    دخول 🚀</a>
             @endguest
 
         </div>

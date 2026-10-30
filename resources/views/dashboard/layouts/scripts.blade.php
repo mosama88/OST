@@ -25,4 +25,6 @@
   <!-- 7. Watch list (ملف الشارت المنفصل) -->
   <script src="{{ asset('dash-users') }}/assets/js/watchlist.js"></script>
 
+  <script src="{{ asset('assets/js/stock-sync.js') }}"></script>
+
   @stack('js')
