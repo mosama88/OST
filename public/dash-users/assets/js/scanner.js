@@ -1,6 +1,7 @@
 /* ============================================================================
-   ULTRA MOMO PRO TERMINAL v7.2 (ADVANCED SEARCH + SPEAKER TABLE + CLEAN UI)
+   ULTRA MOMO PRO TERMINAL v7.3 (RISING MOMENTUM $2-$20 + SPEAKER TABLE + CLEAN UI)
    يدعم البحث بنطاق السعر، الفوليوم، الـ Free Float، والبلد + جدول ناطق مستقل
+   + لوحة MOMENTUM RISING (أخضر) للأسهم من 2 إلى 20 دولار
 ============================================================================ */
 (function () {
   "use strict";
@@ -124,6 +125,10 @@
       .theme-oled .sc-pt tbody tr:hover { background: #1e293b !important; }
       .sc-pt tbody tr.sym-highlighted { background: #facc15 !important; box-shadow: inset 0 0 0 2px #000; }
       .sc-pt tbody tr.sym-highlighted td, .sc-pt tbody tr.sym-highlighted td span { color: #000000 !important; text-shadow: none !important; font-weight: 900 !important; }
+      #scannerPanels .sc-pt tbody tr.row-rising { background: linear-gradient(90deg, rgba(34,197,94,0.55), rgba(22,163,74,0.22)) !important; box-shadow: inset 4px 0 0 #22c55e; }
+      #scannerPanels .sc-pt tbody tr.row-rising td.sy { color: #86efac !important; }
+      #scannerPanels .sc-pt tbody tr.row-rising td.col-chg .up { background: #16a34a; color: #ffffff !important; border-color: #4ade80; }
+      #scannerRows tr.row-rising > td { background-color: rgba(22,163,74,0.30) !important; }
       @keyframes momoFlash { 0% { background-color: #38bdf8; } 50% { background-color: rgba(56, 189, 248, 0.4); } 100% { background-color: transparent; } }
       .sc-new { animation: momoFlash 1.5s ease-out; }
       .halt-badge { background: #dc2626; color: #ffffff !important; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 900; letter-spacing: 0.3px; animation: pulseHalt 1s infinite; }
@@ -266,6 +271,20 @@
   function P(s) { return num(s.price) || 0; } function C(s) { return num(s.changePct) || 0; } function V(s) { return num(s.volume) || 0; } function F(s) { return num(s.floatShares) || 0; }
   function R(s) { return computeVerdict(s).rvol; } function M(s) { return computeVerdict(s).momo; } function W(s) { var w = num(s.week52Pos); return w == null ? -1 : w; } function VW(s) { var w = num(s.vwapDiff); return w == null ? -999 : w; }
 
+  /* مومينتم صاعد: سعر 2-20، أخضر، فوق VWAP، سيولة نشطة، وتسارع فعلي */
+  function isRising(s) {
+    var p = P(s);
+    if (p < 2 || p > 20) return false;
+    if (C(s) <= 0) return false;
+    if (!isHealthy(s)) return false;
+    var vw = num(s.vwapDiff);
+    if (vw == null || vw <= 0) return false;
+    if (R(s) < 1.5) return false;
+    if (M(s) < 60) return false;
+    var accelerating = (s._priceDelta > 0) || (s._chg3m != null && s._chg3m > 0);
+    return accelerating;
+  }
+
   var PANELS = [
     { num: 13, id: 'under20', title: 'UNDER 20 MOVING UP FAST', color: '#38bdf8', rbg: 'linear-gradient(160deg, #082f49 0%, #0369a1 100%)', cols: ['price', 'vol', 'flt', 'chg'], test: function (s) { return P(s) > 0 && P(s) <= 20 && C(s) >= 4 && R(s) >= 1.5; }, sort: function (a, b) { return (C(b) * R(b)) - (C(a) * R(a)); } },
     { num: 16, id: 'bounces', title: 'CATCH BOUNCES', color: '#a3e635', rbg: 'linear-gradient(160deg, #1a2e05 0%, #3f6212 100%)', cols: ['price', 'vol', 'flt', 'vwap'], test: function (s) { return VW(s) > 0 && C(s) > -4 && C(s) < 6 && R(s) >= 1.2; }, sort: function (a, b) { return VW(b) - VW(a); } },
@@ -337,7 +356,14 @@
     { num: 1, id: 'topmovers', title: 'TOP MOVERS (3 MIN)', color: '#fb923c', rbg: 'linear-gradient(160deg, #431407 0%, #9a3412 100%)', cols: ['price', 'chg3', 'vol', 'vol3'], test: function (s) { return s._chg3m != null && Math.abs(s._chg3m) >= 2 && s._vol3m >= 20000 && V(s) >= 250000; }, sort: function (a, b) { return Math.abs(b._chg3m) - Math.abs(a._chg3m); } }
   ];
 
-  PANELS = EVENT_PANELS.concat(PANELS.filter(function (p) { return p.id !== 'topmovers'; }));
+  var RISING_PANEL = {
+    num: 0, id: 'rising', title: '🟢 MOMENTUM RISING  $2–$20', color: '#22c55e',
+    rbg: 'linear-gradient(160deg, #052e16 0%, #166534 100%)',
+    cols: ['price', 'vol', 'flt', 'chg'],
+    test: isRising,
+    sort: function (a, b) { return M(b) - M(a) || R(b) - R(a); }
+  };
+  PANELS = [RISING_PANEL].concat(EVENT_PANELS, PANELS.filter(function (p) { return p.id !== 'topmovers'; }));
 
   /* ---------------- 7. بناء اللوحات ---------------- */
   function renderPanels(rows) {
@@ -388,6 +414,7 @@
         var rowCls = [];
         if (isNew) rowCls.push('sc-new');
         if (isHi) rowCls.push('sym-highlighted');
+        if (isRising(s)) rowCls.push('row-rising');
 
         return '<tr data-symbol="' + esc(s.symbol) + '" class="' + rowCls.join(' ') + '">' +
           '<td class="sy">' + (isPinned ? '⭐' : '') + esc(s.symbol) + dirArrow + '</td>' +
@@ -514,7 +541,7 @@
       tpSlHtml = '<div class="d-flex flex-column gap-1 text-start small"><span class="text-success fw-bold">TP1: $' + fmt(v.tp1, dec) + '</span><span class="text-danger fw-bold">SL: $' + fmt(v.sl, dec) + '</span></div>';
     } else { tpSlHtml = '<span class="text-body-secondary">—</span>'; }
 
-    return '<tr data-symbol="' + esc(s.symbol) + '" style="cursor:pointer" class="align-middle">' +
+    return '<tr data-symbol="' + esc(s.symbol) + '" style="cursor:pointer" class="align-middle' + (isRising(s) ? ' row-rising' : '') + '">' +
       '<td class="text-start"><div class="d-flex align-items-center gap-2"><div class="rounded-circle bg-primary bg-opacity-25 d-flex align-items-center justify-content-center text-primary fw-bold" style="width:32px;height:32px;font-size:12px;">' + esc(s.symbol.substring(0, 2)) + '</div><div><div class="fw-bold text-white fs-6">' + esc(s.symbol) + '</div><div class="text-body-secondary" style="font-size:11px;">' + countryStr + '</div></div></div></td>' +
       '<td class="fw-bold text-white fs-6" dir="ltr">' + priceStr + '</td>' +
       '<td class="fw-bold ' + chgCls + '" dir="ltr">' + chgStr + '</td>' +
@@ -632,7 +659,7 @@
   /* ---------------- 12. الفلاتر والاتصال ---------------- */
   function baseFilters(opts) {
     opts = opts || {}; var filters = [];
-    var pMin = fPriceMin ? num(fPriceMin.value) : 0.01; var pMax = fPriceMax ? num(fPriceMax.value) : 25;
+    var pMin = fPriceMin ? num(fPriceMin.value) : 2; var pMax = fPriceMax ? num(fPriceMax.value) : 20;
     var vMin = fVolumeMin ? num(fVolumeMin.value) : null; var vMax = fVolumeMax ? num(fVolumeMax.value) : null;
     var fltMin = fFloatMin ? num(fFloatMin.value) : null; var fltMax = fFloatMax ? num(fFloatMax.value) : null;
     var country = fCountry ? fCountry.value : 'all'; var cMin = fCapMin ? num(fCapMin.value) : null;
@@ -739,7 +766,7 @@
   allFilterEls.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { saveFilters(); doScan(); }); });
 
   if (resetBtn) resetBtn.addEventListener('click', function () {
-    if (fPriceMin) fPriceMin.value = '0.01'; if (fPriceMax) fPriceMax.value = '25';
+    if (fPriceMin) fPriceMin.value = '2'; if (fPriceMax) fPriceMax.value = '20';
     if (fVolumeMin) fVolumeMin.value = '100000'; if (fVolumeMax) fVolumeMax.value = '';
     if (fFloatMin) fFloatMin.value = ''; if (fFloatMax) fFloatMax.value = '';
     if (fCountry) fCountry.value = 'usa'; if (fCapMin) fCapMin.value = '0';
