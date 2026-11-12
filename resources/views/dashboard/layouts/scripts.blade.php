@@ -27,4 +27,6 @@
 
   <script src="{{ asset('dash-users') }}/assets/js/stock-sync.js"></script>
 
+  <script src="{{ asset('dash-users') }}/assets/js/Spoof-detector.js"></script>
+
   @stack('js')
