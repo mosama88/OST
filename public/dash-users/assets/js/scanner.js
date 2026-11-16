@@ -1,7 +1,7 @@
 /* ============================================================================
-   ULTRA MOMO PRO TERMINAL v7.3 (RISING MOMENTUM $2-$20 + SPEAKER TABLE + CLEAN UI)
+   ULTRA MOMO PRO TERMINAL v7.4 ($1-$20 ONLY + GREEN/RED TREND COLORING)
    يدعم البحث بنطاق السعر، الفوليوم، الـ Free Float، والبلد + جدول ناطق مستقل
-   + لوحة MOMENTUM RISING (أخضر) للأسهم من 2 إلى 20 دولار
+   + أخضر = بريك أوت / مومنتم صاعد | أحمر = كسر / هبوط — للأسهم من 1 إلى 20 دولار فقط
 ============================================================================ */
 (function () {
   "use strict";
@@ -36,7 +36,8 @@
   var fRows = document.getElementById('filterPanelRows');
   var resetBtn = document.getElementById('scannerReset');
 
-  var K_FILTERS = 'scanner-filters-v6-ultra';
+  var PRICE_MIN = 1, PRICE_MAX = 20;
+  var K_FILTERS = 'scanner-filters-v7-1to20';
   var K_PINNED = 'scanner-pinned-v5';
   var K_UI = 'scanner-ui-v52';
 
@@ -129,6 +130,9 @@
       #scannerPanels .sc-pt tbody tr.row-rising td.sy { color: #86efac !important; }
       #scannerPanels .sc-pt tbody tr.row-rising td.col-chg .up { background: #16a34a; color: #ffffff !important; border-color: #4ade80; }
       #scannerRows tr.row-rising > td { background-color: rgba(22,163,74,0.30) !important; }
+      #scannerPanels .sc-pt tbody tr.row-falling { background: linear-gradient(90deg, rgba(239,68,68,0.55), rgba(185,28,28,0.22)) !important; box-shadow: inset 4px 0 0 #ef4444; }
+      #scannerPanels .sc-pt tbody tr.row-falling td.sy { color: #fca5a5 !important; }
+      #scannerRows tr.row-falling > td { background-color: rgba(220,38,38,0.28) !important; }
       @keyframes momoFlash { 0% { background-color: #38bdf8; } 50% { background-color: rgba(56, 189, 248, 0.4); } 100% { background-color: transparent; } }
       .sc-new { animation: momoFlash 1.5s ease-out; }
       .halt-badge { background: #dc2626; color: #ffffff !important; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 900; letter-spacing: 0.3px; animation: pulseHalt 1s infinite; }
@@ -183,6 +187,11 @@
     } catch (e) { }
   }
   loadFilters();
+  function normalizePriceInputs() {
+    if (fPriceMin) fPriceMin.value = Math.max(PRICE_MIN, Number(fPriceMin.value) || PRICE_MIN);
+    if (fPriceMax) fPriceMax.value = Math.min(PRICE_MAX, Number(fPriceMax.value) || PRICE_MAX);
+  }
+  normalizePriceInputs();
 
   document.querySelectorAll('.preset-price').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -274,7 +283,7 @@
   /* مومينتم صاعد: سعر 2-20، أخضر، فوق VWAP، سيولة نشطة، وتسارع فعلي */
   function isRising(s) {
     var p = P(s);
-    if (p < 2 || p > 20) return false;
+    if (p < PRICE_MIN || p > PRICE_MAX) return false;
     if (C(s) <= 0) return false;
     if (!isHealthy(s)) return false;
     var vw = num(s.vwapDiff);
@@ -283,6 +292,35 @@
     if (M(s) < 60) return false;
     var accelerating = (s._priceDelta > 0) || (s._chg3m != null && s._chg3m > 0);
     return accelerating;
+  }
+
+  /* ===== حالة الاتجاه: bull (أخضر) / bear (أحمر) ===== */
+  function inRange(s) { var p = P(s); return p >= PRICE_MIN && p <= PRICE_MAX; }
+
+  /* بريك أوت: اختراق قمة الجلسة بفوليوم، أو سعر لاصق في القمة مع تسارع */
+  function isBreakout(s) {
+    if (!inRange(s)) return false;
+    if (evtActive(s, 'brk')) return true;
+    var oh = offHigh(s);
+    return oh != null && oh <= 0.5 && C(s) >= 3 && R(s) >= 2 && s._vol3m >= 30000 && s._priceDelta > 0;
+  }
+
+  /* عكسه: فلاش بيع، كسر VWAP مع هبوط، أو نزول من القمة مع ضعف */
+  function isFalling(s) {
+    if (!inRange(s)) return false;
+    if (evtActive(s, 'flush')) return true;
+    var vw = num(s.vwapDiff), o = num(s.open), p = P(s), oh = offHigh(s);
+    var down = (s._chg3m != null && s._chg3m < 0) || s._priceDelta < 0;
+    if (vw != null && vw < 0 && down) return true;
+    if (C(s) < 0 && (down || (o && p < o))) return true;
+    if (oh != null && oh > 8 && down) return true;
+    return false;
+  }
+
+  function trendState(s) {
+    if (isBreakout(s) || isRising(s)) return 'bull';
+    if (isFalling(s)) return 'bear';
+    return '';
   }
 
   var PANELS = [
@@ -357,13 +395,20 @@
   ];
 
   var RISING_PANEL = {
-    num: 0, id: 'rising', title: '🟢 MOMENTUM RISING  $2–$20', color: '#22c55e',
+    num: 0, id: 'rising', title: '🟢 BREAKOUT / RISING  $1–$20', color: '#22c55e',
     rbg: 'linear-gradient(160deg, #052e16 0%, #166534 100%)',
     cols: ['price', 'vol', 'flt', 'chg'],
-    test: isRising,
+    test: function (s) { return trendState(s) === 'bull'; },
     sort: function (a, b) { return M(b) - M(a) || R(b) - R(a); }
   };
-  PANELS = [RISING_PANEL].concat(EVENT_PANELS, PANELS.filter(function (p) { return p.id !== 'topmovers'; }));
+  var FALLING_PANEL = {
+    num: 24, id: 'falling', title: '🔴 BREAKDOWN / FALLING  $1–$20', color: '#ef4444',
+    rbg: 'linear-gradient(160deg, #450a0a 0%, #991b1b 100%)',
+    cols: ['price', 'vol', 'flt', 'chg'],
+    test: function (s) { return trendState(s) === 'bear'; },
+    sort: function (a, b) { return C(a) - C(b); }
+  };
+  PANELS = [RISING_PANEL, FALLING_PANEL].concat(EVENT_PANELS, PANELS.filter(function (p) { return p.id !== 'topmovers' && p.id !== 'largecaps'; }));
 
   /* ---------------- 7. بناء اللوحات ---------------- */
   function renderPanels(rows) {
@@ -379,8 +424,10 @@
       var list = rows.filter(function (s) {
         if (!s || !s.symbol) return false;
         if (q && s.symbol.toUpperCase().indexOf(q) === -1) return false;
-        var longOnly = ['losers', 'halt', 'largecaps', 'flush'].indexOf(p.id) === -1;
+        var longOnly = ['losers', 'halt', 'flush', 'falling'].indexOf(p.id) === -1;
         if (longOnly && !isHealthy(s)) return false;
+        
+        
         return p.test(s);
       }).sort(p.sort);
 
@@ -414,10 +461,10 @@
         var rowCls = [];
         if (isNew) rowCls.push('sc-new');
         if (isHi) rowCls.push('sym-highlighted');
-        if (isRising(s)) rowCls.push('row-rising');
+        var ts = trendState(s); if (ts === 'bull') rowCls.push('row-rising'); else if (ts === 'bear') rowCls.push('row-falling');
 
         return '<tr data-symbol="' + esc(s.symbol) + '" class="' + rowCls.join(' ') + '">' +
-          '<td class="sy">' + (isPinned ? '⭐' : '') + esc(s.symbol) + dirArrow + '</td>' +
+          '<td class="sy">' + (isPinned ? '⭐' : '') + (ts === 'bull' ? '🟢' : (ts === 'bear' ? '🔴' : '')) + esc(s.symbol) + dirArrow + '</td>' +
           p.cols.map(function (c) { return '<td class="' + (COLS[c].cls || '') + '">' + COLS[c].f(s) + '</td>'; }).join('') +
           '</tr>';
       }).join('') : '<tr><td colspan="' + (p.cols.length + 1) + '" style="text-align:center;padding:22px;color:#94a3b8 !important">' + (rows.length ? 'لا توجد نتائج' : 'جاري التحميل...') + '</td></tr>';
@@ -541,7 +588,7 @@
       tpSlHtml = '<div class="d-flex flex-column gap-1 text-start small"><span class="text-success fw-bold">TP1: $' + fmt(v.tp1, dec) + '</span><span class="text-danger fw-bold">SL: $' + fmt(v.sl, dec) + '</span></div>';
     } else { tpSlHtml = '<span class="text-body-secondary">—</span>'; }
 
-    return '<tr data-symbol="' + esc(s.symbol) + '" style="cursor:pointer" class="align-middle' + (isRising(s) ? ' row-rising' : '') + '">' +
+    return '<tr data-symbol="' + esc(s.symbol) + '" style="cursor:pointer" class="align-middle' + (trendState(s) === 'bull' ? ' row-rising' : (trendState(s) === 'bear' ? ' row-falling' : '')) + '">' +
       '<td class="text-start"><div class="d-flex align-items-center gap-2"><div class="rounded-circle bg-primary bg-opacity-25 d-flex align-items-center justify-content-center text-primary fw-bold" style="width:32px;height:32px;font-size:12px;">' + esc(s.symbol.substring(0, 2)) + '</div><div><div class="fw-bold text-white fs-6">' + esc(s.symbol) + '</div><div class="text-body-secondary" style="font-size:11px;">' + countryStr + '</div></div></div></td>' +
       '<td class="fw-bold text-white fs-6" dir="ltr">' + priceStr + '</td>' +
       '<td class="fw-bold ' + chgCls + '" dir="ltr">' + chgStr + '</td>' +
@@ -659,7 +706,7 @@
   /* ---------------- 12. الفلاتر والاتصال ---------------- */
   function baseFilters(opts) {
     opts = opts || {}; var filters = [];
-    var pMin = fPriceMin ? num(fPriceMin.value) : 2; var pMax = fPriceMax ? num(fPriceMax.value) : 20;
+    var pMin = Math.max(PRICE_MIN, fPriceMin ? (num(fPriceMin.value) || PRICE_MIN) : PRICE_MIN); var pMax = Math.min(PRICE_MAX, fPriceMax ? (num(fPriceMax.value) || PRICE_MAX) : PRICE_MAX);
     var vMin = fVolumeMin ? num(fVolumeMin.value) : null; var vMax = fVolumeMax ? num(fVolumeMax.value) : null;
     var fltMin = fFloatMin ? num(fFloatMin.value) : null; var fltMax = fFloatMax ? num(fFloatMax.value) : null;
     var country = fCountry ? fCountry.value : 'all'; var cMin = fCapMin ? num(fCapMin.value) : null;
@@ -716,7 +763,7 @@
 
     var base = getWorkerBase(); var bf = baseFilters(); var soft = function () { return []; };
 
-    Promise.all([postScan(base, bf, 'change', 'desc', 150), postScan(base, bf, 'volume', 'desc', 150).catch(soft), postScan(base, bf, 'change', 'asc', 60).catch(soft), postScan(base, largeCapFilters(), 'market_cap_basic', 'desc', 30).catch(soft)])
+    Promise.all([postScan(base, bf, 'change', 'desc', 150), postScan(base, bf, 'volume', 'desc', 150).catch(soft), postScan(base, bf, 'change', 'asc', 60).catch(soft)])
       .then(function (parts) {
         var qsyms = [], seen = {}; parts.forEach(function (arr) { arr.forEach(function (s) { if (s && s.symbol && !seen[s.symbol]) { seen[s.symbol] = 1; qsyms.push(s.symbol); } }); });
         return fetchQuotes(qsyms).then(function (qm) { return { parts: parts, qm: qm }; });
@@ -725,7 +772,7 @@
         var parts = res.parts, qm = res.qm; var map = {}; var all = [];
         parts.forEach(function (arr) {
           arr.forEach(function (s) {
-            if (!s || !s.symbol || map[s.symbol]) return; map[s.symbol] = true; applyQuote(s, qm[s.symbol]); enrichStockMetrics(s); enrichHistory(s); all.push(s);
+            if (!s || !s.symbol || map[s.symbol]) return; if (P(s) < PRICE_MIN || P(s) > PRICE_MAX) return; map[s.symbol] = true; applyQuote(s, qm[s.symbol]); enrichStockMetrics(s); enrichHistory(s); all.push(s);
           });
         });
 
@@ -739,8 +786,8 @@
 
         var main = all.filter(function (s) {
           var p = P(s); if (pMin != null && p < pMin) return false; if (pMax != null && p > pMax) return false;
-          if (chgMin != null && C(s) < chgMin) return false; if (rvMin != null && rvMin > 0 && R(s) < rvMin) return false;
-          if (vFilter && computeVerdict(s).type !== vFilter) return false; if (P(s) < 1) return false; return true;
+          if (chgMin != null && C(s) < chgMin && trendState(s) !== 'bear') return false; if (rvMin != null && rvMin > 0 && R(s) < rvMin) return false;
+          if (vFilter && computeVerdict(s).type !== vFilter) return false; if (P(s) < PRICE_MIN || P(s) > PRICE_MAX) return false; return true;
         });
 
         main.sort(mainSorter()); var lim = parseInt(fLimit ? fLimit.value : '50', 10) || 50;
@@ -763,10 +810,10 @@
   if (scanBtn) scanBtn.addEventListener('click', doScan);
   if (stopBtn) stopBtn.addEventListener('click', function () { if (autoEl) autoEl.checked = false; stopAuto(); setStatus('⏸️ متوقف', 'text-body-secondary'); });
 
-  allFilterEls.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { saveFilters(); doScan(); }); });
+  allFilterEls.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { normalizePriceInputs(); saveFilters(); doScan(); }); });
 
   if (resetBtn) resetBtn.addEventListener('click', function () {
-    if (fPriceMin) fPriceMin.value = '2'; if (fPriceMax) fPriceMax.value = '20';
+    if (fPriceMin) fPriceMin.value = '1'; if (fPriceMax) fPriceMax.value = '20';
     if (fVolumeMin) fVolumeMin.value = '100000'; if (fVolumeMax) fVolumeMax.value = '';
     if (fFloatMin) fFloatMin.value = ''; if (fFloatMax) fFloatMax.value = '';
     if (fCountry) fCountry.value = 'usa'; if (fCapMin) fCapMin.value = '0';

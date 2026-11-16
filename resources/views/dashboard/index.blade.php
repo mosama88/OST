@@ -370,10 +370,10 @@
                         <label class="form-label small text-body-secondary mb-1 fw-bold">💰 نطاق السعر ($)</label>
                         <div class="input-group input-group-sm">
                             <input type="number" class="form-control" id="filterPriceMin" placeholder="من"
-                                value="0.01" step="0.01" dir="ltr" />
+                                value="1" step="0.5" min="1" max="20" dir="ltr" />
                             <span class="input-group-text">-</span>
                             <input type="number" class="form-control" id="filterPriceMax" placeholder="إلى"
-                                value="25" step="0.5" dir="ltr" />
+                                value="20" step="0.5" min="1" max="20" dir="ltr" />
                         </div>
                     </div>
                     <div class="col-12 col-md-6 col-xl-3">
